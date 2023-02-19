@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: excitedleigh/setup-nox@v2.0.0
+
+      - name: tests
+        run: nox -e tests
+
+      - name: flake8
+        run: nox -e flake8
+
+      - name: black
+        run: nox -e black
+
+      - name: isort
+        run: nox -e isort
+
+      - name: mypy
+        run: nox -e mypy
