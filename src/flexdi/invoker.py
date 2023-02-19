@@ -25,13 +25,20 @@ class CallCache:
 
 
 async def call_dependant(
-    dep: Dependant, *, cache: CallCache, stack: AsyncExitStack, override: bool = False, store: bool = True
+    dep: Dependant,
+    *,
+    cache: CallCache,
+    stack: AsyncExitStack,
+    override: bool = False,
+    store: bool = True
 ) -> Any:
     if not override and dep.key in cache:
         return cache[dep.key]
 
     kwargs = {
-        name: await call_dependant(subdep, cache=cache, stack=stack, override=False, store=True)
+        name: await call_dependant(
+            subdep, cache=cache, stack=stack, override=False, store=True
+        )
         for name, subdep in dep.args.items()
     }
 

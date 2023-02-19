@@ -40,9 +40,7 @@ class Injector:
                 signature = inspect.signature(func)
                 bind_to = signature.return_annotation
 
-            dep = create_dependant(
-                bind_to, func, cache=self._deps_cache, override=True
-            )
+            dep = create_dependant(bind_to, func, cache=self._deps_cache, override=True)
             if scope == "singleton":
                 self._singleton_deps.append(dep)
             return func
@@ -143,6 +141,7 @@ class Injector:
             # and avoid any potential caching of the objects return value.
             class Sentinel:
                 pass
+
             clazz = Sentinel
 
         dep = create_dependant(clazz, func, cache=deps_cache, store=False)
