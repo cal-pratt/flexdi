@@ -1,7 +1,6 @@
+# FlexDI 🚀
 [![](https://img.shields.io/pypi/v/flexdi.svg)](https://pypi.org/project/flexdi/)
 [![](https://github.com/cal-pratt/flexdi/actions/workflows/main.yml/badge.svg)](https://github.com/cal-pratt/flexdi/actions)
-
-# FlexDI 🚀
 
 `flexdi` is a yet another dependency injection library for Python. `flexdi` provides a lightweight 
 alternative to common DI solutions with minimal setup to be included in your projects. This library
