@@ -23,6 +23,7 @@ these type annotations to perform injection.
   | Be aware that APIs are likely to change in upcoming releases.
 
 See the `full documentation <https://flexdi.readthedocs.io>`_ for more details.
+
 Goals
 -----
 
