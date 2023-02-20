@@ -115,7 +115,7 @@ def test_provider() -> None:
 
     flex = FlexPack()
 
-    @flex.bind()
+    @flex.bind
     def foo_provider() -> Foo:
         return Foo(2)
 
@@ -200,7 +200,7 @@ def test_provider_lower_level() -> None:
 
     flex = FlexPack()
 
-    @flex.bind()
+    @flex.bind
     def value_provider() -> int:
         return 2
 
@@ -236,11 +236,11 @@ def test_provider_annotated() -> None:
 
     flex = FlexPack()
 
-    @flex.bind()
+    @flex.bind
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @flex.bind()
+    @flex.bind
     def value2_provider() -> Annotated[int, "value2"]:
         return 456
 
@@ -282,7 +282,7 @@ def test_provider_annotated_chained() -> None:
 
     flex = FlexPack()
 
-    @flex.bind()
+    @flex.bind
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
@@ -314,7 +314,7 @@ def test_singleton() -> None:
         called_value1_provider += 1
         return 1
 
-    @flex.bind()
+    @flex.bind
     def value2_provider() -> str:
         nonlocal called_value2_provider
         called_value2_provider += 1
@@ -348,7 +348,7 @@ def test_sync_dep_provider() -> None:
 
     provider_events = []
 
-    @flex.bind()
+    @flex.bind
     def provider() -> int:
         provider_events.append("entered")
         return 1
@@ -374,7 +374,7 @@ def test_async_dep_provider() -> None:
 
     provider_events = []
 
-    @flex.bind()
+    @flex.bind
     async def provider() -> int:
         provider_events.append("entered")
         return 1
@@ -400,7 +400,7 @@ def test_sync_gen_provider() -> None:
 
     provider_events = []
 
-    @flex.bind()
+    @flex.bind
     def provider() -> Iterator[int]:
         provider_events.append("entered")
         try:
@@ -429,7 +429,7 @@ def test_async_gen_provider() -> None:
 
     provider_events = []
 
-    @flex.bind()
+    @flex.bind
     async def provider() -> AsyncIterator[int]:
         provider_events.append("entered")
         try:

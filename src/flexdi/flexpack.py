@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Union,
     cast,
     overload,
 )
@@ -30,7 +31,7 @@ class FlexPack:
         self._stack: Optional[AsyncExitStack] = None
 
     @overload
-    def bind(self, func: Func, *, eager: bool = False, target: Any = None) -> None:
+    def bind(self, func: Func, *, eager: bool = False, target: Any = None) -> Func:
         ...
 
     @overload
@@ -41,10 +42,10 @@ class FlexPack:
 
     def bind(
         self, func: Optional[Func] = None, *, eager: bool = False, target: Any = None
-    ) -> Optional[Callable[[Func], Func]]:
+    ) -> Union[Func, Callable[[Func], Func]]:
         if func:
             self._bind(func, eager=eager, target=target)
-            return None
+            return func
 
         def wrapper(_func: Func) -> Func:
             self._bind(_func, eager=eager, target=target)

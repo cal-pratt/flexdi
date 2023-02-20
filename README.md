@@ -10,7 +10,7 @@ perform injection.
 **Note:** *This repo is still a work in progress and is not yet intended for production use-cases. 
 APIs are likely to change in the coming releases*
 
-## Notable features
+## Goals
 
 - __Minimal Setup__<br/>
 Some DI systems require that you conform to a particular style of class definition, a naming 
@@ -66,7 +66,7 @@ flex = FlexPack()
 
 # Anything that requires an Engine will fetch it from provide_engine
 # For simple functions we infer the binding from the return type annotation. 
-@flex.bind()
+@flex.bind
 def provide_engine() -> Engine:
     return create_engine("sqlite://")
 
@@ -74,7 +74,7 @@ def provide_engine() -> Engine:
 # Generator responses can also be inferred. e.g.
 # - A function returning Iterator[T] binds to T
 # - A function returning AsyncIterator[T] binds to T
-@flex.bind()
+@flex.bind
 def provide_session(engine: Engine) -> Iterator[Session]:
     with Session(engine) as session:
         yield session
@@ -110,7 +110,7 @@ from flexdi import FlexPack
 flex = FlexPack()
 
 
-@flex.bind()
+@flex.bind
 async def provide_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine("sqlite://")
     try:
@@ -119,7 +119,7 @@ async def provide_engine() -> AsyncIterator[AsyncEngine]:
         await engine.dispose()
 
 
-@flex.bind()
+@flex.bind
 async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     async with engine.begin() as conn:
         yield conn

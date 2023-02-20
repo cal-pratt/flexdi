@@ -1,2 +1,2 @@
 def test_module() -> None:
-    pass
+    import flexdi  # noqa: F401
