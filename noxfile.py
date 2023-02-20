@@ -1,4 +1,6 @@
 import nox
+import os
+import shutil
 
 PYTHON_VERSION = "3.11"
 BLACK_ARGS = ["black", "src/", "tests/"]
@@ -72,6 +74,8 @@ def mypy(session):
 @nox.session(python=PYTHON_VERSION)
 def publish(session):
     session.install("twine >= 4.0.2", "build >= 0.10.0")
+    if os.path.exists("dist"):
+        shutil.rmtree("dist")
     session.run("python", "-m", "build")
     session.run("twine", "upload", "dist/*")
 
@@ -79,5 +83,7 @@ def publish(session):
 @nox.session(python=PYTHON_VERSION)
 def test_publish(session):
     session.install("twine >= 4.0.2", "build >= 0.10.0")
+    if os.path.exists("dist"):
+        shutil.rmtree("dist")
     session.run("python", "-m", "build")
     session.run("twine", "upload", "-r", "testpypi", "dist/*")
