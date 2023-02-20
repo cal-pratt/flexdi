@@ -18,8 +18,8 @@ intended for use with type annotated Python libraries, as it leverages
 these type annotations to perform injection.
 
 .. note::
-  | FlexDI is still a work in progress and is not yet intended
-    for production use-cases.
-  | Be aware that APIs are likely to change in upcoming releases.
+  | **FlexDI is still a work in progress and is not yet intended
+    for production use-cases.**
+  | **Be aware that APIs are likely to change in upcoming releases.**
 
-See the `full documentation <https://flexdi.readthedocs.io>`_ for more details.
+The full documentation is available at `flexdi.readthedocs.io <https://flexdi.readthedocs.io>`_.
