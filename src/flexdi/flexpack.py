@@ -6,6 +6,7 @@ from typing import (
     Callable,
     Coroutine,
     Iterator,
+    List,
     Optional,
     Type,
     TypeVar,
@@ -25,7 +26,7 @@ Func = TypeVar("Func", bound=Callable[..., Any])
 
 class FlexPack:
     def __init__(self) -> None:
-        self._eager_deps: list[Dependant] = []
+        self._eager_deps: List[Dependant] = []
         self._deps_cache = DependantCache()
         self._call_cache = CallCache()
         self._stack: Optional[AsyncExitStack] = None

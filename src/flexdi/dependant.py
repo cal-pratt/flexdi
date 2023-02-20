@@ -2,7 +2,7 @@ import inspect
 from collections import ChainMap
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator, MutableMapping
+from typing import Any, Callable, Dict, Iterator, MutableMapping
 
 from .errors import CycleError
 
@@ -10,7 +10,7 @@ from .errors import CycleError
 @dataclass
 class Dependant:
     key: Any
-    args: dict[str, "Dependant"]
+    args: Dict[str, "Dependant"]
     func: Callable[..., Any]
 
 
