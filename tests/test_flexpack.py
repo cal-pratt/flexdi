@@ -1,12 +1,11 @@
-import sys
 from dataclasses import dataclass
-from typing import Annotated, Any, AsyncIterator, Iterator
-
-if sys.version_info >= (3, 11):
-    from typing import assert_type
+from typing import Any, AsyncIterator, Iterator
 
 import pytest
 from pydantic import BaseModel
+# Import of Annotated not available from typing until 3.9
+# Import of assert_type not available from typing until 3.11
+from typing_extensions import Annotated, assert_type
 
 from flexdi import CycleError, FlexPack
 
@@ -524,7 +523,6 @@ async def test_async_all_providers() -> None:
         assert res.val4 == 4
 
 
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_supports_all_func_invocations_sync() -> None:
     class Foo:
         pass
@@ -557,7 +555,6 @@ def test_supports_all_func_invocations_sync() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 async def test_supports_all_func_invocations_async() -> None:
     class Foo:
         pass
