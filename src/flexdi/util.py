@@ -1,11 +1,11 @@
 import collections.abc
 import inspect
 from functools import lru_cache
-from typing import Any, Sequence, Type, get_args, get_origin
+from typing import Any, Sequence, Tuple, Type, get_args, get_origin
 
 
 @lru_cache(maxsize=None)
-def get_cached_class_args(clazz: Type[Any]) -> tuple[Type[Any], Sequence[Type[Any]]]:
+def get_cached_class_args(clazz: Type[Any]) -> Tuple[Type[Any], Sequence[Type[Any]]]:
     """
     Helper function to inspect class types.
     For a given class, determine the class to instantiate, and any generic arguments.
