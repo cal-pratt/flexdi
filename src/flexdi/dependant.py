@@ -2,36 +2,38 @@ import inspect
 from collections import ChainMap
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator, MutableMapping, Type
+from typing import Any, Callable, Iterator, MutableMapping
 
-from .errors import CycleDetectionError
+from .errors import DependencyCycleError
 
 
 @dataclass
 class Dependant:
-    key: Type[Any]
+    key: Any
     args: dict[str, "Dependant"]
     func: Callable[..., Any]
 
 
 @dataclass
 class DependantCache:
-    _cache: MutableMapping[Type[Any], "Dependant"] = field(default_factory=dict)
-    _constructing: set[Type[Any]] = field(default_factory=set)
+    _cache: MutableMapping[Any, "Dependant"] = field(default_factory=dict)
+    _constructing: set[Any] = field(default_factory=set)
 
-    def __contains__(self, key: Type[Any]) -> bool:
+    def __contains__(self, key: Any) -> bool:
         return key in self._cache
 
-    def __getitem__(self, key: Type[Any]) -> Dependant:
+    def __getitem__(self, key: Any) -> Dependant:
         return self._cache[key]
 
-    def __setitem__(self, key: Type[Any], dep: Dependant) -> None:
+    def __setitem__(self, key: Any, dep: Dependant) -> None:
         self._cache[key] = dep
 
     @contextmanager
-    def cycle_guard(self, key: Type[Any]) -> Iterator[None]:
+    def cycle_guard(self, key: Any) -> Iterator[None]:
         if key in self._constructing:
-            raise CycleDetectionError("Cycle Detected")
+            raise DependencyCycleError(
+                f"Cycle Detected construction dependency for {key}"
+            )
         self._constructing.add(key)
         try:
             yield
@@ -43,23 +45,23 @@ class DependantCache:
 
 
 def create_dependant(
-    clazz: Type[Any],
+    key: Any,
     func: Callable[..., Any],
     *,
     cache: DependantCache,
     override: bool = False,
     store: bool = True,
 ) -> Dependant:
-    if not override and clazz in cache:
-        return cache[clazz]
+    if not override and key in cache:
+        return cache[key]
 
-    with cache.cycle_guard(clazz):
+    with cache.cycle_guard(key):
         signature = inspect.signature(func)
         res = Dependant(
-            key=clazz,
+            key=key,
             args={
                 key: create_dependant(
-                    clazz=param.annotation,
+                    key=param.annotation,
                     func=param.annotation,
                     cache=cache,
                     override=False,
@@ -70,6 +72,6 @@ def create_dependant(
             func=func,
         )
     if store:
-        cache[clazz] = res
+        cache[key] = res
 
     return res

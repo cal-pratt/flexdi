@@ -1,2 +1,2 @@
-class CycleDetectionError(Exception):
+class DependencyCycleError(Exception):
     pass

@@ -1,7 +1,6 @@
 import asyncio
 import inspect
 from contextlib import AsyncExitStack
-from types import TracebackType
 from typing import (
     Any,
     AsyncIterator,
@@ -34,6 +33,9 @@ class Injector:
     ) -> Callable[[Func], Func]:
         assert scope in ("request", "singleton")
 
+        if self._stack:
+            raise Exception("Context already opened.")
+
         def wrapper(func: Func) -> Func:
             nonlocal bind_to
             if bind_to is None:
@@ -48,25 +50,33 @@ class Injector:
         return wrapper
 
     def __enter__(self) -> "Injector":
-        return self
+        return asyncio.run(self._enter())
+
+    def __exit__(self, *args: Any, **kwargs: Any) -> Optional[bool]:
+        return asyncio.run(self._exit())
 
     async def __aenter__(self) -> "Injector":
+        return await self._enter()
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> Optional[bool]:
+        await self._exit()
+        return None
+
+    async def _enter(self) -> "Injector":
+        if not self._stack:
+            stack = AsyncExitStack()
+            for dep in self._singleton_deps:
+                if dep.key not in self._call_cache:
+                    await call_dependant(
+                        dep,
+                        cache=self._call_cache,
+                        stack=stack,
+                        override=True,
+                    )
+            self._stack = stack
         return self
 
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
-        return asyncio.run(self.__aexit__(exc_type, exc, traceback))
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> Optional[bool]:
+    async def _exit(self) -> None:
         self._call_cache = CallCache()
         if stack := self._stack:
             try:
@@ -74,7 +84,15 @@ class Injector:
                     pass
             finally:
                 self._stack = None
-        return None
+
+    def chain(self) -> "Injector":
+        if not self._stack:
+            raise Exception("Context was not opened for injector")
+
+        injector = Injector()
+        injector._call_cache = self._call_cache.chain()
+        injector._deps_cache = self._deps_cache.chain()
+        return injector
 
     @overload
     def invoke(self, func: Type[T]) -> T:
@@ -130,35 +148,9 @@ class Injector:
         ...
 
     async def ainvoke(self, func: Callable[..., T]) -> T:
-        deps_cache = self._deps_cache.chain()
-        call_cache = self._call_cache.chain()
-        stack = await self._init_stack()
-
-        if isinstance(func, type):
-            clazz = func
-        else:
-            # create a unique class to represent the function we're invoking, to be unique
-            # and avoid any potential caching of the objects return value.
-            class Sentinel:
-                pass
-
-            clazz = Sentinel
-
-        dep = create_dependant(clazz, func, cache=deps_cache, store=False)
-        res = await call_dependant(dep, cache=call_cache, stack=stack, store=False)
-
-        return cast(T, res)
-
-    async def _init_stack(self) -> AsyncExitStack:
         if not (stack := self._stack):
-            stack = AsyncExitStack()
-            for dep in self._singleton_deps:
-                if dep.key not in self._call_cache:
-                    await call_dependant(
-                        dep,
-                        cache=self._call_cache,
-                        stack=stack,
-                        override=True,
-                    )
-            self._stack = stack
-        return stack
+            raise Exception("Context was not opened for injector")
+
+        dep = create_dependant(func, func, cache=self._deps_cache)
+        res = await call_dependant(dep, cache=self._call_cache, stack=stack)
+        return cast(T, res)

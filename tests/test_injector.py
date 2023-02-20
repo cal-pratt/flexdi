@@ -4,7 +4,7 @@ from typing import Annotated, Any, AsyncIterator, Iterator, assert_type
 import pytest
 from pydantic import BaseModel
 
-from flexdi import CycleDetectionError, Injector
+from flexdi import DependencyCycleError, Injector
 
 
 def test_dependant_simple() -> None:
@@ -16,8 +16,9 @@ def test_dependant_simple() -> None:
     class Foo:
         pass
 
-    res = Injector().invoke(Foo)
-    assert isinstance(res, Foo)
+    with Injector() as injector:
+        res = injector.invoke(Foo)
+        assert isinstance(res, Foo)
 
 
 def test_dependant_chained() -> None:
@@ -32,9 +33,10 @@ def test_dependant_chained() -> None:
         def __init__(self, dep1: Foo) -> None:
             self.dep1 = dep1
 
-    res = Injector().invoke(Bar)
-    assert isinstance(res, Bar)
-    assert isinstance(res.dep1, Foo)
+    with Injector() as injector:
+        res = injector.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
 
 
 def test_dependant_chained_dataclasses() -> None:
@@ -50,9 +52,10 @@ def test_dependant_chained_dataclasses() -> None:
     class Bar:
         dep1: Foo
 
-    res = Injector().invoke(Bar)
-    assert isinstance(res, Bar)
-    assert isinstance(res.dep1, Foo)
+    with Injector() as injector:
+        res = injector.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
 
 
 def test_dependant_chained_pydantic() -> None:
@@ -66,9 +69,10 @@ def test_dependant_chained_pydantic() -> None:
     class Bar(BaseModel):
         dep1: Foo
 
-    res = Injector().invoke(Bar)
-    assert isinstance(res, Bar)
-    assert isinstance(res.dep1, Foo)
+    with Injector() as injector:
+        res = injector.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
 
 
 def test_cycle_detection() -> None:
@@ -93,10 +97,11 @@ def test_cycle_detection() -> None:
     Foo.__init__ = foo_init  # type: ignore
     Bar.__init__ = bar_init  # type: ignore
 
-    with pytest.raises(CycleDetectionError):
-        Injector().invoke(Foo)
-    with pytest.raises(CycleDetectionError):
-        Injector().invoke(Bar)
+    with Injector() as injector:
+        with pytest.raises(DependencyCycleError):
+            injector.invoke(Foo)
+        with pytest.raises(DependencyCycleError):
+            injector.invoke(Bar)
 
 
 def test_provider() -> None:
@@ -114,10 +119,11 @@ def test_provider() -> None:
     def foo_provider() -> Foo:
         return Foo(2)
 
-    res = injector.invoke(Bar)
-    assert isinstance(res, Bar)
-    assert isinstance(res.dep1, Foo)
-    assert res.dep1.value == 2
+    with injector:
+        res = injector.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
+        assert res.dep1.value == 2
 
 
 def test_provider_lower_level() -> None:
@@ -135,10 +141,11 @@ def test_provider_lower_level() -> None:
     def value_provider() -> int:
         return 2
 
-    res = injector.invoke(Bar)
-    assert isinstance(res, Bar)
-    assert isinstance(res.dep1, Foo)
-    assert res.dep1.value == 2
+    with injector:
+        res = injector.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
+        assert res.dep1.value == 2
 
 
 def test_provider_clazz_mapping() -> None:
@@ -152,9 +159,10 @@ def test_provider_clazz_mapping() -> None:
     def value_provider() -> Any:
         return 3
 
-    res = injector.invoke(Foo)
-    assert isinstance(res, Foo)
-    assert res.value == 3
+    with injector:
+        res = injector.invoke(Foo)
+        assert isinstance(res, Foo)
+        assert res.value == 3
 
 
 def test_provider_annotated() -> None:
@@ -173,10 +181,11 @@ def test_provider_annotated() -> None:
     def value2_provider() -> Annotated[int, "value2"]:
         return 456
 
-    res = injector.invoke(Foo)
-    assert isinstance(res, Foo)
-    assert res.value1 == 123
-    assert res.value2 == 456
+    with injector:
+        res = injector.invoke(Foo)
+        assert isinstance(res, Foo)
+        assert res.value1 == 123
+        assert res.value2 == 456
 
 
 def test_provider_annotated_mapping() -> None:
@@ -195,10 +204,11 @@ def test_provider_annotated_mapping() -> None:
     def value2_provider() -> int:
         return 456
 
-    res = injector.invoke(Foo)
-    assert isinstance(res, Foo)
-    assert res.value1 == 123
-    assert res.value2 == 456
+    with injector:
+        res = injector.invoke(Foo)
+        assert isinstance(res, Foo)
+        assert res.value1 == 123
+        assert res.value2 == 456
 
 
 def test_provider_annotated_chained() -> None:
@@ -217,10 +227,11 @@ def test_provider_annotated_chained() -> None:
     def value2_provider(value1: Annotated[int, "value1"]) -> int:
         return value1 + 111
 
-    res = injector.invoke(Foo)
-    assert isinstance(res, Foo)
-    assert res.value1 == 123
-    assert res.value2 == 234
+    with injector:
+        res = injector.invoke(Foo)
+        assert isinstance(res, Foo)
+        assert res.value1 == 123
+        assert res.value2 == 234
 
 
 def test_singleton() -> None:
@@ -247,15 +258,19 @@ def test_singleton() -> None:
         return "2"
 
     with injector:
-        injector.invoke(Foo)
-        injector.invoke(Foo)
+        with injector.chain() as sub_injector:
+            sub_injector.invoke(Foo)
+        with injector.chain() as sub_injector:
+            sub_injector.invoke(Foo)
 
     assert called_value1_provider == 1
     assert called_value2_provider == 2
 
     with injector:
-        injector.invoke(Foo)
-        injector.invoke(Foo)
+        with injector.chain() as sub_injector:
+            sub_injector.invoke(Foo)
+        with injector.chain() as sub_injector:
+            sub_injector.invoke(Foo)
 
     assert called_value1_provider == 2
     assert called_value2_provider == 4
