@@ -1,4 +1,4 @@
-from .errors import DependencyCycleError
-from .injector import Injector
+from .errors import CycleError, FlexError, SetupError
+from .flexpack import FlexPack
 
-__all__ = ["Injector", "DependencyCycleError"]
+__all__ = ["FlexPack", "FlexError", "CycleError", "SetupError"]

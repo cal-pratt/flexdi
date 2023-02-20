@@ -39,7 +39,7 @@ methods, or be provided as async context managers.
 
 ## High level Overview
 
-`flexdi` offers a construct called the `Injector` which is used to populate callables with
+`flexdi` offers a construct called the `FlexPack` which is used to inject callables with
 arguments and invoke these callables. These arguments are dependencies you want to inject in your
 application.
 
@@ -60,33 +60,37 @@ from typing import Iterator
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session
 
-from flexdi import Injector
+from flexdi import FlexPack
 
-injector = Injector()
+flex = FlexPack()
 
-# For simple functions we can infer the type to 
-# bind from the return type annotation
-@injector.binding()
+# Anything that requires an Engine will fetch it from provide_engine
+# For simple functions we infer the binding from the return type annotation. 
+@flex.bind()
 def provide_engine() -> Engine:
     return create_engine("sqlite://")
 
-# For more complex functions we can explicitly define 
-# the type that we bind the result to.
-@injector.binding(bind_to=Session)
+
+# Generator responses can also be inferred. e.g.
+# - A function returning Iterator[T] binds to T
+# - A function returning AsyncIterator[T] binds to T
+@flex.bind()
 def provide_session(engine: Engine) -> Iterator[Session]:
     with Session(engine) as session:
         yield session
+
 
 # We don't need to add any flexdi setup to our actual code. 
 def main(session: Session) -> int:
     print(session.execute(text("SELECT now()")))
     return 0
 
+
 if __name__ == "__main__":
     # Start up the injector, and guard using a with statement to
     # ensure that we clean up any dependencies which require it
-    with injector:
-        sys.exit(injector.invoke(main))
+    with flex:
+        sys.exit(flex.invoke(main))
 ```
 
 The same example, but using async code:
@@ -95,17 +99,18 @@ The same example, but using async code:
 import sys
 from typing import AsyncIterator
 from sqlalchemy.ext.asyncio import (
-    AsyncConnection, 
-    AsyncEngine, 
+    AsyncConnection,
+    AsyncEngine,
     create_async_engine
 )
 from sqlalchemy import text
 
-from flexdi import Injector
+from flexdi import FlexPack
 
-injector = Injector()
+flex = FlexPack()
 
-@injector.binding(bind_to=AsyncEngine)
+
+@flex.bind()
 async def provide_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine("sqlite://")
     try:
@@ -113,27 +118,31 @@ async def provide_engine() -> AsyncIterator[AsyncEngine]:
     finally:
         await engine.dispose()
 
-@injector.binding(bind_to=AsyncConnection)
+
+@flex.bind()
 async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     async with engine.begin() as conn:
         yield conn
+
 
 async def main(conn: AsyncConnection) -> int:
     print(await conn.execute(text("SELECT now()")))
     return 0
 
+
 if __name__ == "__main__":
-    with injector:
+    with flex:
         # The injector can handle invoking async functions natively,
         # so no worry about adding in extra logic here.
-        sys.exit(injector.invoke(main))
+        sys.exit(flex.invoke(main))
 ...
+
 
 # If already within an async context, then you can use the
 # async versions of these methods.
 async def func() -> int:
-    async with injector:
-        return await injector.ainvoke(main)
+    async with flex:
+        return await flex.ainvoke(main)
 ```
 
 

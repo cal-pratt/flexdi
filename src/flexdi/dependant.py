@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator, MutableMapping
 
-from .errors import DependencyCycleError
+from .errors import CycleError
 
 
 @dataclass
@@ -31,9 +31,7 @@ class DependantCache:
     @contextmanager
     def cycle_guard(self, key: Any) -> Iterator[None]:
         if key in self._constructing:
-            raise DependencyCycleError(
-                f"Cycle Detected construction dependency for {key}"
-            )
+            raise CycleError(f"Cycle Detected construction dependency for {key}")
         self._constructing.add(key)
         try:
             yield

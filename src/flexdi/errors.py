@@ -1,2 +1,10 @@
-class DependencyCycleError(Exception):
+class FlexError(Exception):
+    pass
+
+
+class CycleError(FlexError):
+    pass
+
+
+class SetupError(FlexError):
     pass

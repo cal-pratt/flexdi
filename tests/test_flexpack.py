@@ -4,7 +4,7 @@ from typing import Annotated, Any, AsyncIterator, Iterator, assert_type
 import pytest
 from pydantic import BaseModel
 
-from flexdi import DependencyCycleError, Injector
+from flexdi import CycleError, FlexPack
 
 
 def test_dependant_simple() -> None:
@@ -16,8 +16,8 @@ def test_dependant_simple() -> None:
     class Foo:
         pass
 
-    with Injector() as injector:
-        res = injector.invoke(Foo)
+    with FlexPack() as flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
 
 
@@ -33,8 +33,8 @@ def test_dependant_chained() -> None:
         def __init__(self, dep1: Foo) -> None:
             self.dep1 = dep1
 
-    with Injector() as injector:
-        res = injector.invoke(Bar)
+    with FlexPack() as flex:
+        res = flex.invoke(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -52,8 +52,8 @@ def test_dependant_chained_dataclasses() -> None:
     class Bar:
         dep1: Foo
 
-    with Injector() as injector:
-        res = injector.invoke(Bar)
+    with FlexPack() as flex:
+        res = flex.invoke(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -69,8 +69,8 @@ def test_dependant_chained_pydantic() -> None:
     class Bar(BaseModel):
         dep1: Foo
 
-    with Injector() as injector:
-        res = injector.invoke(Bar)
+    with FlexPack() as flex:
+        res = flex.invoke(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -97,11 +97,11 @@ def test_cycle_detection() -> None:
     Foo.__init__ = foo_init  # type: ignore
     Bar.__init__ = bar_init  # type: ignore
 
-    with Injector() as injector:
-        with pytest.raises(DependencyCycleError):
-            injector.invoke(Foo)
-        with pytest.raises(DependencyCycleError):
-            injector.invoke(Bar)
+    with FlexPack() as flex:
+        with pytest.raises(CycleError):
+            flex.invoke(Foo)
+        with pytest.raises(CycleError):
+            flex.invoke(Bar)
 
 
 def test_provider() -> None:
@@ -113,17 +113,80 @@ def test_provider() -> None:
     class Bar:
         dep1: Foo
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding()
+    @flex.bind()
     def foo_provider() -> Foo:
         return Foo(2)
 
-    with injector:
-        res = injector.invoke(Bar)
+    with flex:
+        res = flex.invoke(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
+
+
+def test_provider_no_decorator() -> None:
+    @dataclass
+    class Foo:
+        value: int
+
+    @dataclass
+    class Bar:
+        dep1: Foo
+
+    def foo_provider() -> Foo:
+        return Foo(2)
+
+    flex = FlexPack()
+    flex.bind(foo_provider)
+
+    with flex:
+        res = flex.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
+        assert res.dep1.value == 2
+
+
+def test_provider_lambda() -> None:
+    @dataclass
+    class Foo:
+        value: int
+
+    @dataclass
+    class Bar:
+        dep1: Foo
+
+    flex = FlexPack()
+    flex.bind(lambda: Foo(2), target=Foo)
+
+    with flex:
+        res = flex.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, Foo)
+        assert res.dep1.value == 2
+
+
+def test_provider_interface_map() -> None:
+    @dataclass
+    class Foo:
+        pass
+
+    @dataclass
+    class FooChild(Foo):
+        pass
+
+    @dataclass
+    class Bar:
+        dep1: Foo
+
+    flex = FlexPack()
+    flex.bind(FooChild, target=Foo)
+
+    with flex:
+        res = flex.invoke(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.dep1, FooChild)
 
 
 def test_provider_lower_level() -> None:
@@ -135,14 +198,14 @@ def test_provider_lower_level() -> None:
     class Bar:
         dep1: Foo
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding()
+    @flex.bind()
     def value_provider() -> int:
         return 2
 
-    with injector:
-        res = injector.invoke(Bar)
+    with flex:
+        res = flex.invoke(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
@@ -153,14 +216,14 @@ def test_provider_clazz_mapping() -> None:
     class Foo:
         value: int
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding(bind_to=int)
+    @flex.bind(target=int)
     def value_provider() -> Any:
         return 3
 
-    with injector:
-        res = injector.invoke(Foo)
+    with flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value == 3
 
@@ -171,18 +234,18 @@ def test_provider_annotated() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding()
+    @flex.bind()
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @injector.binding()
+    @flex.bind()
     def value2_provider() -> Annotated[int, "value2"]:
         return 456
 
-    with injector:
-        res = injector.invoke(Foo)
+    with flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 456
@@ -194,18 +257,18 @@ def test_provider_annotated_mapping() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding(bind_to=Annotated[int, "value1"])
+    @flex.bind(target=Annotated[int, "value1"])
     def value1_provider() -> int:
         return 123
 
-    @injector.binding(bind_to=Annotated[int, "value2"])
+    @flex.bind(target=Annotated[int, "value2"])
     def value2_provider() -> int:
         return 456
 
-    with injector:
-        res = injector.invoke(Foo)
+    with flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 456
@@ -217,18 +280,18 @@ def test_provider_annotated_chained() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding()
+    @flex.bind()
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @injector.binding(bind_to=Annotated[int, "value2"])
+    @flex.bind(target=Annotated[int, "value2"])
     def value2_provider(value1: Annotated[int, "value1"]) -> int:
         return value1 + 111
 
-    with injector:
-        res = injector.invoke(Foo)
+    with flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 234
@@ -240,36 +303,36 @@ def test_singleton() -> None:
         value1: int
         value2: str
 
-    injector = Injector()
+    flex = FlexPack()
 
     called_value1_provider = 0
     called_value2_provider = 0
 
-    @injector.binding(scope="singleton")
+    @flex.bind(eager=True)
     def value1_provider() -> int:
         nonlocal called_value1_provider
         called_value1_provider += 1
         return 1
 
-    @injector.binding()
+    @flex.bind()
     def value2_provider() -> str:
         nonlocal called_value2_provider
         called_value2_provider += 1
         return "2"
 
-    with injector:
-        with injector.chain() as sub_injector:
+    with flex:
+        with flex.chain() as sub_injector:
             sub_injector.invoke(Foo)
-        with injector.chain() as sub_injector:
+        with flex.chain() as sub_injector:
             sub_injector.invoke(Foo)
 
     assert called_value1_provider == 1
     assert called_value2_provider == 2
 
-    with injector:
-        with injector.chain() as sub_injector:
+    with flex:
+        with flex.chain() as sub_injector:
             sub_injector.invoke(Foo)
-        with injector.chain() as sub_injector:
+        with flex.chain() as sub_injector:
             sub_injector.invoke(Foo)
 
     assert called_value1_provider == 2
@@ -281,19 +344,19 @@ def test_sync_dep_provider() -> None:
     class Foo:
         value: int
 
-    injector = Injector()
+    flex = FlexPack()
 
     provider_events = []
 
-    @injector.binding(bind_to=int)
+    @flex.bind()
     def provider() -> int:
         provider_events.append("entered")
         return 1
 
-    with injector:
+    with flex:
         provider_events = []
 
-        res = injector.invoke(Foo)
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -307,19 +370,19 @@ def test_async_dep_provider() -> None:
     class Foo:
         value: int
 
-    injector = Injector()
+    flex = FlexPack()
 
     provider_events = []
 
-    @injector.binding(bind_to=int)
+    @flex.bind()
     async def provider() -> int:
         provider_events.append("entered")
         return 1
 
-    with injector:
+    with flex:
         provider_events = []
 
-        res = injector.invoke(Foo)
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -333,11 +396,11 @@ def test_sync_gen_provider() -> None:
     class Foo:
         value: int
 
-    injector = Injector()
+    flex = FlexPack()
 
     provider_events = []
 
-    @injector.binding(bind_to=int)
+    @flex.bind()
     def provider() -> Iterator[int]:
         provider_events.append("entered")
         try:
@@ -345,10 +408,10 @@ def test_sync_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    with injector:
+    with flex:
         provider_events = []
 
-        res = injector.invoke(Foo)
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -362,11 +425,11 @@ def test_async_gen_provider() -> None:
     class Foo:
         value: int
 
-    injector = Injector()
+    flex = FlexPack()
 
     provider_events = []
 
-    @injector.binding(bind_to=int)
+    @flex.bind()
     async def provider() -> AsyncIterator[int]:
         provider_events.append("entered")
         try:
@@ -374,10 +437,10 @@ def test_async_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    with injector:
+    with flex:
         provider_events = []
 
-        res = injector.invoke(Foo)
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -394,26 +457,26 @@ def test_all_providers() -> None:
         val3: Annotated[int, "value3"]
         val4: Annotated[int, "value4"]
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding(bind_to=Annotated[int, "value1"])
+    @flex.bind(target=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @injector.binding(bind_to=Annotated[int, "value2"])
+    @flex.bind(target=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @injector.binding(bind_to=Annotated[int, "value3"])
+    @flex.bind(target=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @injector.binding(bind_to=Annotated[int, "value4"])
+    @flex.bind(target=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
-    with injector:
-        res = injector.invoke(Foo)
+    with flex:
+        res = flex.invoke(Foo)
         assert isinstance(res, Foo)
         assert res.val1 == 1
         assert res.val2 == 2
@@ -430,26 +493,26 @@ async def test_async_all_providers() -> None:
         val3: Annotated[int, "value3"]
         val4: Annotated[int, "value4"]
 
-    injector = Injector()
+    flex = FlexPack()
 
-    @injector.binding(bind_to=Annotated[int, "value1"])
+    @flex.bind(target=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @injector.binding(bind_to=Annotated[int, "value2"])
+    @flex.bind(target=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @injector.binding(bind_to=Annotated[int, "value3"])
+    @flex.bind(target=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @injector.binding(bind_to=Annotated[int, "value4"])
+    @flex.bind(target=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
-    async with injector:
-        res = await injector.ainvoke(Foo)
+    async with flex:
+        res = await flex.ainvoke(Foo)
         assert isinstance(res, Foo)
         assert res.val1 == 1
         assert res.val2 == 2
@@ -473,11 +536,11 @@ def test_supports_all_func_invocations_sync() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    with Injector() as injector:
-        res1 = injector.invoke(func1)
-        res2 = injector.invoke(func2)
-        res3 = injector.invoke(func3)
-        res4 = injector.invoke(func4)
+    with FlexPack() as flex:
+        res1 = flex.invoke(func1)
+        res2 = flex.invoke(func2)
+        res3 = flex.invoke(func3)
+        res4 = flex.invoke(func4)
         assert_type(res1, Foo)
         assert_type(res2, Foo)
         assert_type(res3, Foo)
@@ -505,11 +568,11 @@ async def test_supports_all_func_invocations_async() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    async with Injector() as injector:
-        res1 = await injector.ainvoke(func1)
-        res2 = await injector.ainvoke(func2)
-        res3 = await injector.ainvoke(func3)
-        res4 = await injector.ainvoke(func4)
+    async with FlexPack() as flex:
+        res1 = await flex.ainvoke(func1)
+        res2 = await flex.ainvoke(func2)
+        res3 = await flex.ainvoke(func3)
+        res4 = await flex.ainvoke(func4)
         assert_type(res1, Foo)
         assert_type(res2, Foo)
         assert_type(res3, Foo)
