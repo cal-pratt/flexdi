@@ -1,10 +1,10 @@
 import collections.abc
 import inspect
-from functools import cache
+from functools import lru_cache
 from typing import Any, Sequence, Type, get_args, get_origin
 
 
-@cache
+@lru_cache(maxsize=None)
 def get_cached_class_args(clazz: Type[Any]) -> tuple[Type[Any], Sequence[Type[Any]]]:
     """
     Helper function to inspect class types.
