@@ -3,6 +3,7 @@ import os
 import shutil
 
 PYTHON_VERSION = "3.11"
+SUPPORTED_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 BLACK_ARGS = ["black", "src/", "tests/"]
 ISORT_ARGS = ["isort", "src/", "tests/"]
 DEV_DEPS = [
@@ -14,6 +15,7 @@ DEV_DEPS = [
     "pydantic >= 1.10.5",
     "pytest >= 7.2.1",
     "pytest-asyncio >= 0.20.3",
+    "typing-extensions >= 4.5.0",
 ]
 
 nox.options.sessions = ["dev"]
@@ -26,7 +28,7 @@ def dev(session):
     session.install("-e", ".")
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=SUPPORTED_VERSIONS)
 def tests(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")

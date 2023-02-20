@@ -1,8 +1,12 @@
 from dataclasses import dataclass
-from typing import Annotated, Any, AsyncIterator, Iterator, assert_type
+from typing import Any, AsyncIterator, Iterator
 
 import pytest
 from pydantic import BaseModel
+
+# Import of Annotated not available from typing until 3.9
+# Import of assert_type not available from typing until 3.11
+from typing_extensions import Annotated, assert_type
 
 from flexdi import CycleError, FlexPack
 

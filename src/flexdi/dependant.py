@@ -2,7 +2,7 @@ import inspect
 from collections import ChainMap
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator, MutableMapping
+from typing import Any, Callable, Dict, Iterator, MutableMapping, Set
 
 from .errors import CycleError
 
@@ -10,14 +10,14 @@ from .errors import CycleError
 @dataclass
 class Dependant:
     key: Any
-    args: dict[str, "Dependant"]
+    args: Dict[str, "Dependant"]
     func: Callable[..., Any]
 
 
 @dataclass
 class DependantCache:
     _cache: MutableMapping[Any, "Dependant"] = field(default_factory=dict)
-    _constructing: set[Any] = field(default_factory=set)
+    _constructing: Set[Any] = field(default_factory=set)
 
     def __contains__(self, key: Any) -> bool:
         return key in self._cache
