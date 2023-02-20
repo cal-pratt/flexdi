@@ -1,3 +1,5 @@
+import webbrowser
+
 import nox
 import os
 import shutil
@@ -35,7 +37,7 @@ def tests(session):
     session.run("pytest", "tests/")
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def clean(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
@@ -89,3 +91,27 @@ def test_publish(session):
         shutil.rmtree("dist")
     session.run("python", "-m", "build")
     session.run("twine", "upload", "-r", "testpypi", "dist/*")
+
+
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
+def docs(session):
+    session.install("Sphinx >= 6.1.3", "sphinx-rtd-theme >= 1.2.0")
+    if os.path.exists("docs/build"):
+        shutil.rmtree("docs/build")
+    session.run("sphinx-build", "-a", "docs/source", "docs/build")
+    path = os.path.abspath("docs/build/index.html")
+    webbrowser.open_new_tab(f"file://{path}")
+
+    # regenerate the README.rst
+    sections = [
+        "docs/source/header.rst",
+        "docs/source/overview/goals.rst",
+        "docs/source/overview/overview.rst",
+        "docs/source/overview/alternatives.rst",
+    ]
+    with open("README.rst", "w") as readme_file:
+        for section in sections:
+            if readme_file.tell():
+                readme_file.write("\n")
+            with open(section, "r") as section_file:
+                readme_file.write(section_file.read())
