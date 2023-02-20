@@ -55,7 +55,7 @@ class FlexPack:
 
     def _bind(self, func: Any, *, eager: bool = False, target: Any) -> None:
         if self._stack:
-            raise SetupError("FlexBox already opened. Cannot add additional bindings.")
+            raise SetupError("FlexPack already opened. Cannot add additional bindings.")
 
         if target is None:
             target = provider_return_type(func)
@@ -110,7 +110,7 @@ class FlexPack:
 
     def chain(self) -> "FlexPack":
         if not self._stack:
-            raise SetupError("FlexBox not opened. Cannot be chained.")
+            raise SetupError("FlexPack not opened. Cannot be chained.")
 
         flex = FlexPack()
         flex._call_cache = self._call_cache.chain()
@@ -172,7 +172,7 @@ class FlexPack:
 
     async def ainvoke(self, func: Callable[..., T]) -> T:
         if not (stack := self._stack):
-            raise SetupError("FlexBox not opened. Cannot be invoked.")
+            raise SetupError("FlexPack not opened. Cannot be invoked.")
 
         dep = create_dependant(func, func, cache=self._deps_cache)
         res = await call_dependant(dep, cache=self._call_cache, stack=stack)

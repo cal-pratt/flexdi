@@ -1,5 +1,9 @@
+import sys
 from dataclasses import dataclass
-from typing import Annotated, Any, AsyncIterator, Iterator, assert_type
+from typing import Annotated, Any, AsyncIterator, Iterator
+
+if sys.version_info >= (3, 11):
+    from typing import assert_type
 
 import pytest
 from pydantic import BaseModel
@@ -520,6 +524,7 @@ async def test_async_all_providers() -> None:
         assert res.val4 == 4
 
 
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 def test_supports_all_func_invocations_sync() -> None:
     class Foo:
         pass
@@ -552,6 +557,7 @@ def test_supports_all_func_invocations_sync() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
 async def test_supports_all_func_invocations_async() -> None:
     class Foo:
         pass
