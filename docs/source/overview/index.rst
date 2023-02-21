@@ -1,4 +1,5 @@
 .. include:: overview.rst
+.. include:: example.rst
 
 .. toctree::
    :hidden:

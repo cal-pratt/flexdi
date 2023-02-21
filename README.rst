@@ -1,3 +1,4 @@
+
 FlexDI
 ======
 
@@ -71,6 +72,7 @@ type definition to an instance. These bindings can themselves be injected
 with dependencies. Bindings can also be defined as generators which allows
 supplying custom teardown logic for dependencies.
 
+
 Example Usage
 -------------
 
@@ -78,96 +80,98 @@ A simple example of an application with SQLAlchemy dependencies:
 
 .. code:: python
 
-   import sys
-   from typing import Iterator
-   from sqlalchemy import Engine, create_engine, text
-   from sqlalchemy.orm import Session
-
-   from flexdi import FlexGraph
-
-   # The FlexGraph keeps track of what dependencies different
-   # providers require, and will later be used to resolve them.
-   graph = FlexGraph()
-
-   # Anything that requires an Engine will fetch it from provide_engine
-   # For simple functions we infer the binding from the return type annotation.
-   @graph.bind
-   def provide_engine() -> Engine:
-       return create_engine("sqlite://")
-
-
-   # Generator responses can also be inferred. e.g.
-   # - A function returning Iterator[T] binds to T
-   # - A function returning AsyncIterator[T] binds to T
-   @graph.bind
-   def provide_session(engine: Engine) -> Iterator[Session]:
-       with Session(engine) as session:
-           yield session
-
-
-   # We don't need to add any flexdi setup to our actual code.
-   def main(session: Session) -> int:
-       print(session.execute(text("SELECT now()")))
-       return 0
-
-
-   if __name__ == "__main__":
-       # Start up the injector, and guard using a with statement to
-       # ensure that we clean up any dependencies which require it
-       with graph:
-           sys.exit(graph.resolve(main))
+    import sys
+    from typing import Iterator
+    
+    from sqlalchemy import Engine, create_engine, text
+    from sqlalchemy.orm import Session
+    
+    from flexdi import FlexGraph
+    
+    # The FlexGraph keeps track of what dependencies different
+    # providers require, and will later be used to resolve them.
+    graph = FlexGraph()
+    
+    
+    # Let's add a binding for an Engine. Anything that requires an Engine will
+    # now fetch it from provide_engine.
+    # FlexGraph uses the functions return type annotation to perform the binding.
+    @graph.bind
+    def provide_engine() -> Engine:
+        return create_engine("sqlite://")
+    
+    
+    # Generator responses can also be used. e.g.
+    # - A function returning Iterator[T] binds to T
+    # - A function returning AsyncIterator[T] binds to T
+    @graph.bind
+    def provide_session(engine: Engine) -> Iterator[Session]:
+        with Session(engine) as session:
+            yield session
+    
+    
+    def execute(session: Session) -> int:
+        print(session.execute(text("SELECT datetime('now');")).one())
+        return 0
+    
+    
+    # We always call the graph from a with statement to ensure
+    # we clean up any dependencies which require teardown
+    def main() -> int:
+        with graph:
+            return graph.resolve(main)
+    
+    
+    if __name__ == "__main__":
+        sys.exit(main())
+    
 
 The same example, but using async code:
 
 .. code:: python
 
-   import sys
-   from typing import AsyncIterator
-   from sqlalchemy.ext.asyncio import (
-       AsyncConnection,
-       AsyncEngine,
-       create_async_engine
-   )
-   from sqlalchemy import text
-
-   from flexdi import FlexGraph
-
-   graph = FlexGraph()
-
-
-   @graph.bind
-   async def provide_engine() -> AsyncIterator[AsyncEngine]:
-       engine = create_async_engine("sqlite://")
-       try:
-           yield engine
-       finally:
-           await engine.dispose()
-
-
-   @graph.bind
-   async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
-       async with engine.begin() as conn:
-           yield conn
-
-
-   async def main(conn: AsyncConnection) -> int:
-       print(await conn.execute(text("SELECT now()")))
-       return 0
-
-
-   if __name__ == "__main__":
-       with graph:
-           # The injector can handle invoking async functions natively,
-           # so no worry about adding in extra logic here.
-           sys.exit(graph.resolve(main))
-   ...
-
-
-   # If already within an async context, then you can use the
-   # async versions of these methods.
-   async def func() -> int:
-       async with graph:
-           return await graph.aresolve(main)
+    import asyncio
+    import sys
+    from typing import AsyncIterator
+    
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+    
+    from flexdi import FlexGraph
+    
+    graph = FlexGraph()
+    
+    
+    @graph.bind
+    async def provide_engine() -> AsyncIterator[AsyncEngine]:
+        engine = create_async_engine("sqlite+aiosqlite://")
+        try:
+            yield engine
+        finally:
+            await engine.dispose()
+    
+    
+    @graph.bind
+    async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
+        async with engine.begin() as conn:
+            yield conn
+    
+    
+    async def execute(conn: AsyncConnection) -> int:
+        print((await conn.execute(text("SELECT datetime('now');"))).one())
+        return 0
+    
+    
+    # If already within an async context, then you can use the
+    # async versions of the graph methods.
+    async def main() -> int:
+        async with graph:
+            return await graph.aresolve(execute)
+    
+    
+    if __name__ == "__main__":
+        sys.exit(asyncio.run(main()))
+    
 
 Alternatives
 ------------
@@ -203,3 +207,4 @@ My thoughts on some of the popular alternatives I have used in the past:
     that specify a dependency of a particular type, but use different
     names, then you need to bind them all individually as well. And
     sadly, this project has now been archived and is read-only.
+

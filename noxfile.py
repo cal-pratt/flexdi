@@ -6,8 +6,8 @@ import shutil
 
 PYTHON_VERSION = "3.11"
 SUPPORTED_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
-BLACK_ARGS = ["black", "src/", "tests/"]
-ISORT_ARGS = ["isort", "src/", "tests/"]
+BLACK_ARGS = ["black", "src/", "tests/", "examples/"]
+ISORT_ARGS = ["isort", "src/", "tests/", "examples/"]
 DEV_DEPS = [
     "black >= 23.1.0",
     "bumpversion >= 0.6.0",
@@ -103,15 +103,38 @@ def docs(session):
     webbrowser.open_new_tab(f"file://{path}")
 
     # regenerate the README.rst
-    sections = [
-        "docs/source/header.rst",
-        "docs/source/overview/goals.rst",
-        "docs/source/overview/overview.rst",
-        "docs/source/overview/alternatives.rst",
-    ]
     with open("README.rst", "w") as readme_file:
-        for section in sections:
-            if readme_file.tell():
-                readme_file.write("\n")
-            with open(section, "r") as section_file:
-                readme_file.write(section_file.read())
+        readme_file.write(gen_readme())
+
+
+def gen_readme() -> str:
+    def readall(file_name: str) -> str:
+        with open(file_name, "r") as file:
+            return file.read()
+
+    def readall_indent(file_name: str) -> str:
+        lines = readall(file_name).split("\n")
+        return "\n".join(f"    {line}" for line in lines)
+
+    return f"""
+{readall("docs/source/header.rst")}
+{readall("docs/source/overview/goals.rst")}
+{readall("docs/source/overview/overview.rst")}
+
+Example Usage
+-------------
+
+A simple example of an application with SQLAlchemy dependencies:
+
+.. code:: python
+
+{readall_indent("examples/sqla_sync.py")}
+
+The same example, but using async code:
+
+.. code:: python
+
+{readall_indent("examples/sqla_async.py")}
+
+{readall("docs/source/overview/alternatives.rst")}
+"""
