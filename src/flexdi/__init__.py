@@ -1,4 +1,4 @@
 from .errors import CycleError, FlexError, SetupError
-from .flexpack import FlexGraph
+from .graph import FlexGraph
 
 __all__ = ["FlexGraph", "FlexError", "CycleError", "SetupError"]
