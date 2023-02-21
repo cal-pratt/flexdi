@@ -8,7 +8,7 @@ from pydantic import BaseModel
 # Import of assert_type not available from typing until 3.11
 from typing_extensions import Annotated, assert_type
 
-from flexdi import CycleError, FlexPack
+from flexdi import CycleError, FlexGraph
 
 
 def test_dependant_simple() -> None:
@@ -20,8 +20,8 @@ def test_dependant_simple() -> None:
     class Foo:
         pass
 
-    with FlexPack() as flex:
-        res = flex.invoke(Foo)
+    with FlexGraph() as graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
 
 
@@ -37,8 +37,8 @@ def test_dependant_chained() -> None:
         def __init__(self, dep1: Foo) -> None:
             self.dep1 = dep1
 
-    with FlexPack() as flex:
-        res = flex.invoke(Bar)
+    with FlexGraph() as graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -56,8 +56,8 @@ def test_dependant_chained_dataclasses() -> None:
     class Bar:
         dep1: Foo
 
-    with FlexPack() as flex:
-        res = flex.invoke(Bar)
+    with FlexGraph() as graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -73,8 +73,8 @@ def test_dependant_chained_pydantic() -> None:
     class Bar(BaseModel):
         dep1: Foo
 
-    with FlexPack() as flex:
-        res = flex.invoke(Bar)
+    with FlexGraph() as graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
 
@@ -101,11 +101,11 @@ def test_cycle_detection() -> None:
     Foo.__init__ = foo_init  # type: ignore
     Bar.__init__ = bar_init  # type: ignore
 
-    with FlexPack() as flex:
+    with FlexGraph() as graph:
         with pytest.raises(CycleError):
-            flex.invoke(Foo)
+            graph.resolve(Foo)
         with pytest.raises(CycleError):
-            flex.invoke(Bar)
+            graph.resolve(Bar)
 
 
 def test_provider() -> None:
@@ -117,14 +117,14 @@ def test_provider() -> None:
     class Bar:
         dep1: Foo
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind
+    @graph.bind
     def foo_provider() -> Foo:
         return Foo(2)
 
-    with flex:
-        res = flex.invoke(Bar)
+    with graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
@@ -142,11 +142,11 @@ def test_provider_no_decorator() -> None:
     def foo_provider() -> Foo:
         return Foo(2)
 
-    flex = FlexPack()
-    flex.bind(foo_provider)
+    graph = FlexGraph()
+    graph.bind(foo_provider)
 
-    with flex:
-        res = flex.invoke(Bar)
+    with graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
@@ -161,11 +161,11 @@ def test_provider_lambda() -> None:
     class Bar:
         dep1: Foo
 
-    flex = FlexPack()
-    flex.bind(lambda: Foo(2), target=Foo)
+    graph = FlexGraph()
+    graph.bind(lambda: Foo(2), target=Foo)
 
-    with flex:
-        res = flex.invoke(Bar)
+    with graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
@@ -184,11 +184,11 @@ def test_provider_interface_map() -> None:
     class Bar:
         dep1: Foo
 
-    flex = FlexPack()
-    flex.bind(FooChild, target=Foo)
+    graph = FlexGraph()
+    graph.bind(FooChild, target=Foo)
 
-    with flex:
-        res = flex.invoke(Bar)
+    with graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, FooChild)
 
@@ -202,14 +202,14 @@ def test_provider_lower_level() -> None:
     class Bar:
         dep1: Foo
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind
+    @graph.bind
     def value_provider() -> int:
         return 2
 
-    with flex:
-        res = flex.invoke(Bar)
+    with graph:
+        res = graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
         assert res.dep1.value == 2
@@ -220,14 +220,14 @@ def test_provider_clazz_mapping() -> None:
     class Foo:
         value: int
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind(target=int)
+    @graph.bind(target=int)
     def value_provider() -> Any:
         return 3
 
-    with flex:
-        res = flex.invoke(Foo)
+    with graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 3
 
@@ -238,18 +238,18 @@ def test_provider_annotated() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind
+    @graph.bind
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @flex.bind
+    @graph.bind
     def value2_provider() -> Annotated[int, "value2"]:
         return 456
 
-    with flex:
-        res = flex.invoke(Foo)
+    with graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 456
@@ -261,18 +261,18 @@ def test_provider_annotated_mapping() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind(target=Annotated[int, "value1"])
+    @graph.bind(target=Annotated[int, "value1"])
     def value1_provider() -> int:
         return 123
 
-    @flex.bind(target=Annotated[int, "value2"])
+    @graph.bind(target=Annotated[int, "value2"])
     def value2_provider() -> int:
         return 456
 
-    with flex:
-        res = flex.invoke(Foo)
+    with graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 456
@@ -284,18 +284,18 @@ def test_provider_annotated_chained() -> None:
         value1: Annotated[int, "value1"]
         value2: Annotated[int, "value2"]
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind
+    @graph.bind
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @flex.bind(target=Annotated[int, "value2"])
+    @graph.bind(target=Annotated[int, "value2"])
     def value2_provider(value1: Annotated[int, "value1"]) -> int:
         return value1 + 111
 
-    with flex:
-        res = flex.invoke(Foo)
+    with graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value1 == 123
         assert res.value2 == 234
@@ -307,37 +307,37 @@ def test_singleton() -> None:
         value1: int
         value2: str
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
     called_value1_provider = 0
     called_value2_provider = 0
 
-    @flex.bind(eager=True)
+    @graph.bind(eager=True)
     def value1_provider() -> int:
         nonlocal called_value1_provider
         called_value1_provider += 1
         return 1
 
-    @flex.bind
+    @graph.bind
     def value2_provider() -> str:
         nonlocal called_value2_provider
         called_value2_provider += 1
         return "2"
 
-    with flex:
-        with flex.chain() as sub_injector:
-            sub_injector.invoke(Foo)
-        with flex.chain() as sub_injector:
-            sub_injector.invoke(Foo)
+    with graph:
+        with graph.chain() as sub_injector:
+            sub_injector.resolve(Foo)
+        with graph.chain() as sub_injector:
+            sub_injector.resolve(Foo)
 
     assert called_value1_provider == 1
     assert called_value2_provider == 2
 
-    with flex:
-        with flex.chain() as sub_injector:
-            sub_injector.invoke(Foo)
-        with flex.chain() as sub_injector:
-            sub_injector.invoke(Foo)
+    with graph:
+        with graph.chain() as sub_injector:
+            sub_injector.resolve(Foo)
+        with graph.chain() as sub_injector:
+            sub_injector.resolve(Foo)
 
     assert called_value1_provider == 2
     assert called_value2_provider == 4
@@ -348,19 +348,19 @@ def test_sync_dep_provider() -> None:
     class Foo:
         value: int
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
     provider_events = []
 
-    @flex.bind
+    @graph.bind
     def provider() -> int:
         provider_events.append("entered")
         return 1
 
-    with flex:
+    with graph:
         provider_events = []
 
-        res = flex.invoke(Foo)
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -374,19 +374,19 @@ def test_async_dep_provider() -> None:
     class Foo:
         value: int
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
     provider_events = []
 
-    @flex.bind
+    @graph.bind
     async def provider() -> int:
         provider_events.append("entered")
         return 1
 
-    with flex:
+    with graph:
         provider_events = []
 
-        res = flex.invoke(Foo)
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -400,11 +400,11 @@ def test_sync_gen_provider() -> None:
     class Foo:
         value: int
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
     provider_events = []
 
-    @flex.bind
+    @graph.bind
     def provider() -> Iterator[int]:
         provider_events.append("entered")
         try:
@@ -412,10 +412,10 @@ def test_sync_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    with flex:
+    with graph:
         provider_events = []
 
-        res = flex.invoke(Foo)
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -429,11 +429,11 @@ def test_async_gen_provider() -> None:
     class Foo:
         value: int
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
     provider_events = []
 
-    @flex.bind
+    @graph.bind
     async def provider() -> AsyncIterator[int]:
         provider_events.append("entered")
         try:
@@ -441,10 +441,10 @@ def test_async_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    with flex:
+    with graph:
         provider_events = []
 
-        res = flex.invoke(Foo)
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
@@ -461,26 +461,26 @@ def test_all_providers() -> None:
         val3: Annotated[int, "value3"]
         val4: Annotated[int, "value4"]
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind(target=Annotated[int, "value1"])
+    @graph.bind(target=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @flex.bind(target=Annotated[int, "value2"])
+    @graph.bind(target=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @flex.bind(target=Annotated[int, "value3"])
+    @graph.bind(target=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @flex.bind(target=Annotated[int, "value4"])
+    @graph.bind(target=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
-    with flex:
-        res = flex.invoke(Foo)
+    with graph:
+        res = graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.val1 == 1
         assert res.val2 == 2
@@ -497,26 +497,26 @@ async def test_async_all_providers() -> None:
         val3: Annotated[int, "value3"]
         val4: Annotated[int, "value4"]
 
-    flex = FlexPack()
+    graph = FlexGraph()
 
-    @flex.bind(target=Annotated[int, "value1"])
+    @graph.bind(target=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @flex.bind(target=Annotated[int, "value2"])
+    @graph.bind(target=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @flex.bind(target=Annotated[int, "value3"])
+    @graph.bind(target=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @flex.bind(target=Annotated[int, "value4"])
+    @graph.bind(target=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
-    async with flex:
-        res = await flex.ainvoke(Foo)
+    async with graph:
+        res = await graph.aresolve(Foo)
         assert isinstance(res, Foo)
         assert res.val1 == 1
         assert res.val2 == 2
@@ -540,11 +540,11 @@ def test_supports_all_func_invocations_sync() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    with FlexPack() as flex:
-        res1 = flex.invoke(func1)
-        res2 = flex.invoke(func2)
-        res3 = flex.invoke(func3)
-        res4 = flex.invoke(func4)
+    with FlexGraph() as graph:
+        res1 = graph.resolve(func1)
+        res2 = graph.resolve(func2)
+        res3 = graph.resolve(func3)
+        res4 = graph.resolve(func4)
         assert_type(res1, Foo)
         assert_type(res2, Foo)
         assert_type(res3, Foo)
@@ -572,11 +572,11 @@ async def test_supports_all_func_invocations_async() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    async with FlexPack() as flex:
-        res1 = await flex.ainvoke(func1)
-        res2 = await flex.ainvoke(func2)
-        res3 = await flex.ainvoke(func3)
-        res4 = await flex.ainvoke(func4)
+    async with FlexGraph() as graph:
+        res1 = await graph.aresolve(func1)
+        res2 = await graph.aresolve(func2)
+        res3 = await graph.aresolve(func3)
+        res4 = await graph.aresolve(func4)
         assert_type(res1, Foo)
         assert_type(res2, Foo)
         assert_type(res3, Foo)

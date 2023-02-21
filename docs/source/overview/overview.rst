@@ -1,21 +1,18 @@
 Overview
 ========
 
-``flexdi`` offers a construct called the ``FlexPack`` which is used to
-inject callables with arguments and invoke these callables. These
-arguments are dependencies you want to inject in your application.
+``flexdi`` offers a construct called the ``FlexGraph`` which is used to
+keep track of dependencies and invoke other callables.
 
-When determining dependencies for a callable, ``flexdi`` will examine
-the type annotations of the arguments, and construct a graph of objects
-which can satisfy the callable. A callable can be anything from a class
-(as seen with the type annotations), to functions, class methods,
-generators, etc.
+When determining dependencies for a callable, ``flexdi`` will examine the type
+annotations of the arguments, and populate the graph with dependencies which can
+satisfy the callable. A callable can be anything from a class (as seen with the
+type annotations), to functions, class methods, generators, etc.
 
-For complex types, ``flexdi`` allows binding helper functions that can
-map an instance to a type definition. These helper functions can
-themselves be injected with dependencies. Bindings can also be defined
-as generators which allows supplying custom teardown logic for your
-dependencies.
+For complex types, ``flexdi`` allows binding helper functions that can map a
+type definition to an instance. These bindings can themselves be injected
+with dependencies. Bindings can also be defined as generators which allows
+supplying custom teardown logic for dependencies.
 
 Example Usage
 -------------
@@ -29,13 +26,15 @@ A simple example of an application with SQLAlchemy dependencies:
    from sqlalchemy import Engine, create_engine, text
    from sqlalchemy.orm import Session
 
-   from flexdi import FlexPack
+   from flexdi import FlexGraph
 
-   flex = FlexPack()
+   # The FlexGraph keeps track of what dependencies different
+   # providers require, and will later be used to resolve them.
+   graph = FlexGraph()
 
    # Anything that requires an Engine will fetch it from provide_engine
    # For simple functions we infer the binding from the return type annotation.
-   @flex.bind
+   @graph.bind
    def provide_engine() -> Engine:
        return create_engine("sqlite://")
 
@@ -43,7 +42,7 @@ A simple example of an application with SQLAlchemy dependencies:
    # Generator responses can also be inferred. e.g.
    # - A function returning Iterator[T] binds to T
    # - A function returning AsyncIterator[T] binds to T
-   @flex.bind
+   @graph.bind
    def provide_session(engine: Engine) -> Iterator[Session]:
        with Session(engine) as session:
            yield session
@@ -58,8 +57,8 @@ A simple example of an application with SQLAlchemy dependencies:
    if __name__ == "__main__":
        # Start up the injector, and guard using a with statement to
        # ensure that we clean up any dependencies which require it
-       with flex:
-           sys.exit(flex.invoke(main))
+       with graph:
+           sys.exit(graph.resolve(main))
 
 The same example, but using async code:
 
@@ -74,12 +73,12 @@ The same example, but using async code:
    )
    from sqlalchemy import text
 
-   from flexdi import FlexPack
+   from flexdi import FlexGraph
 
-   flex = FlexPack()
+   graph = FlexGraph()
 
 
-   @flex.bind
+   @graph.bind
    async def provide_engine() -> AsyncIterator[AsyncEngine]:
        engine = create_async_engine("sqlite://")
        try:
@@ -88,7 +87,7 @@ The same example, but using async code:
            await engine.dispose()
 
 
-   @flex.bind
+   @graph.bind
    async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
        async with engine.begin() as conn:
            yield conn
@@ -100,15 +99,15 @@ The same example, but using async code:
 
 
    if __name__ == "__main__":
-       with flex:
+       with graph:
            # The injector can handle invoking async functions natively,
            # so no worry about adding in extra logic here.
-           sys.exit(flex.invoke(main))
+           sys.exit(graph.resolve(main))
    ...
 
 
    # If already within an async context, then you can use the
    # async versions of these methods.
    async def func() -> int:
-       async with flex:
-           return await flex.ainvoke(main)
+       async with graph:
+           return await graph.aresolve(main)

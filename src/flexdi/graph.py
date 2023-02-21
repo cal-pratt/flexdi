@@ -24,7 +24,7 @@ T = TypeVar("T")
 Func = TypeVar("Func", bound=Callable[..., Any])
 
 
-class FlexPack:
+class FlexGraph:
     def __init__(self) -> None:
         self._eager_deps: List[Dependant] = []
         self._deps_cache = DependantCache()
@@ -65,16 +65,16 @@ class FlexPack:
         if eager:
             self._eager_deps.append(dep)
 
-    def __enter__(self) -> "FlexPack":
+    def __enter__(self) -> "FlexGraph":
         return self.open()
 
-    async def __aenter__(self) -> "FlexPack":
+    async def __aenter__(self) -> "FlexGraph":
         return await self.aopen()
 
-    def open(self) -> "FlexPack":
+    def open(self) -> "FlexGraph":
         return asyncio.run(self.aopen())
 
-    async def aopen(self) -> "FlexPack":
+    async def aopen(self) -> "FlexGraph":
         if not self._stack:
             self._stack = stack = AsyncExitStack()
             try:
@@ -109,69 +109,69 @@ class FlexPack:
             finally:
                 self._stack = None
 
-    def chain(self) -> "FlexPack":
+    def chain(self) -> "FlexGraph":
         if not self._stack:
             raise SetupError("FlexPack not opened. Cannot be chained.")
 
-        flex = FlexPack()
+        flex = FlexGraph()
         flex._call_cache = self._call_cache.chain()
         flex._deps_cache = self._deps_cache.chain()
         return flex
 
     @overload
-    def invoke(self, func: Type[T]) -> T:
+    def resolve(self, func: Type[T]) -> T:
         # Handle class
         ...
 
     @overload
-    def invoke(self, func: Callable[..., AsyncIterator[T]]) -> T:
+    def resolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
         # Handle async generators
         ...
 
     @overload
-    def invoke(self, func: Callable[..., Iterator[T]]) -> T:
+    def resolve(self, func: Callable[..., Iterator[T]]) -> T:
         # Handle generators
         ...
 
     @overload
-    def invoke(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
+    def resolve(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
         # Handle async function
         ...
 
     @overload
-    def invoke(self, func: Callable[..., T]) -> T:
+    def resolve(self, func: Callable[..., T]) -> T:
         # Handle function
         ...
 
-    def invoke(self, func: Callable[..., T]) -> T:
-        return asyncio.run(self.ainvoke(func))
+    def resolve(self, func: Callable[..., T]) -> T:
+        return asyncio.run(self.aresolve(func))
 
     @overload
-    async def ainvoke(self, func: Type[T]) -> T:
+    async def aresolve(self, func: Type[T]) -> T:
         # Handle class
         ...
 
     @overload
-    async def ainvoke(self, func: Callable[..., AsyncIterator[T]]) -> T:
+    async def aresolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
         # Handle async generators
         ...
 
     @overload
-    async def ainvoke(self, func: Callable[..., Iterator[T]]) -> T:
+    async def aresolve(self, func: Callable[..., Iterator[T]]) -> T:
         # Handle generators
         ...
 
     @overload
-    async def ainvoke(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
+    async def aresolve(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
         # Handle async function
         ...
 
     @overload
-    async def ainvoke(self, func: Callable[..., T]) -> T:
+    async def aresolve(self, func: Callable[..., T]) -> T:
         # Handle function
         ...
 
-    async def ainvoke(self, func: Callable[..., T]) -> T:
+    async def aresolve(self, func: Callable[..., T]) -> T:
         if not (stack := self._stack):
             raise SetupError("FlexPack not opened. Cannot be invoked.")
 
