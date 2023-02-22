@@ -585,3 +585,41 @@ async def test_supports_all_func_invocations_async() -> None:
         assert isinstance(res2, Foo)
         assert isinstance(res3, Foo)
         assert isinstance(res4, Foo)
+
+
+def test_async_gen_picks_correct_loop() -> None:
+    """
+    Assert that when running asynchronous dependencies from a synchronous
+    function that the cleanup is performed in the expected order.
+    """
+
+    graph = FlexGraph()
+
+    class Foo:
+        pass
+
+    class Bar:
+        pass
+
+    events = []
+
+    @graph.bind
+    async def func1() -> AsyncIterator[Foo]:
+        events.append(1)
+        yield Foo()
+        events.append(5)
+
+    @graph.bind
+    async def func2(foo: Foo) -> AsyncIterator[Bar]:
+        events.append(2)
+        yield Bar()
+        events.append(4)
+
+    @graph.bind
+    async def func3(bar: Bar) -> None:
+        events.append(3)
+
+    with graph:
+        graph.resolve(func3)
+
+    assert events == [1, 2, 3, 4, 5]

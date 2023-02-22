@@ -72,7 +72,8 @@ class FlexGraph:
         return await self.aopen()
 
     def open(self) -> "FlexGraph":
-        return asyncio.run(self.aopen())
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.aopen())
 
     async def aopen(self) -> "FlexGraph":
         if not self._stack:
@@ -98,14 +99,14 @@ class FlexGraph:
         await self.aclose()
 
     def close(self) -> None:
-        asyncio.run(self.aclose())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.aclose())
 
     async def aclose(self) -> None:
         self._call_cache = CallCache()
         if stack := self._stack:
             try:
-                async with stack:
-                    pass
+                await stack.aclose()
             finally:
                 self._stack = None
 
@@ -144,7 +145,8 @@ class FlexGraph:
         ...
 
     def resolve(self, func: Callable[..., T]) -> T:
-        return asyncio.run(self.aresolve(func))
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.aresolve(func))
 
     @overload
     async def aresolve(self, func: Type[T]) -> T:
