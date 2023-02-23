@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 from contextlib import AsyncExitStack
 from typing import (
     Any,
