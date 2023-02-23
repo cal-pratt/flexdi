@@ -30,7 +30,7 @@ def dev(session):
     session.install("-e", ".")
 
 
-@nox.session(python=SUPPORTED_VERSIONS)
+@nox.session(python=SUPPORTED_VERSIONS, reuse_venv=True)
 def tests(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
@@ -45,7 +45,7 @@ def clean(session):
     session.run(*ISORT_ARGS)
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def flake8(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
@@ -53,7 +53,7 @@ def flake8(session):
     session.run("flake8", "src/", "tests/")
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def black(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
@@ -61,14 +61,14 @@ def black(session):
     session.run(*BLACK_ARGS, "--check", "--diff")
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def isort(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
     session.run(*ISORT_ARGS, "--diff", "--check-only")
 
 
-@nox.session(python=PYTHON_VERSION)
+@nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def mypy(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
