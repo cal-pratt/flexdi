@@ -1,4 +1,7 @@
-from typing import Annotated, AsyncIterator, Iterator
+from typing import AsyncIterator, Iterator
+
+# Import of Annotated not available from typing until 3.9
+from typing_extensions import Annotated
 
 from flexdi.util import determine_return_type
 

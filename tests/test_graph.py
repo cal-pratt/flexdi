@@ -630,9 +630,14 @@ def test_bindings_out_of_order() -> None:
     If we get dependencies in a different order than their dependency resolution
     order, we should be able to construct the correct graph regardless.
 
-    In this case we have dependencies Buzz -> Fizz -> Foo
-    If we bind Bar to a target of Foo after we have already made a binding to
-    resolve Fizz, then the Fizz dependency should still be updated.
+    In this case we have a dependency chain (Buzz -> Fizz -> Foo) and we bind Bar
+    to be the resolver of Foo after we have already made a binding to resolve Fizz.
+
+    If we determine the dependencies too early, then the Fizz will think that Foo
+    should be its own resolver, because at the time of binding that would make sense.
+    Only once we enter the with statement should we evaluate the full dependency
+    tree, because at that point we can reference all bindings made no matter what
+    order they are made in.
     """
 
     graph = FlexGraph()
