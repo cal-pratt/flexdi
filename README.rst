@@ -109,7 +109,7 @@ A simple example of an application with SQLAlchemy dependencies:
     # we clean up any dependencies which require teardown
     def main() -> int:
         with graph:
-            return graph.resolve(main)
+            return graph.resolve(execute)
     
     
     if __name__ == "__main__":

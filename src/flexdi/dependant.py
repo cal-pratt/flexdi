@@ -2,74 +2,81 @@ import inspect
 from collections import ChainMap
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterator, MutableMapping, Set
+from typing import Any, Callable, Dict, Iterator, MutableMapping, Set, Type
 
+from .binding import Binding, BindingMap, create_binding
 from .errors import CycleError
 
 
 @dataclass
 class Dependant:
-    key: Any
+    target: Type[Any]
     args: Dict[str, "Dependant"]
     func: Callable[..., Any]
 
 
 @dataclass
-class DependantCache:
-    _cache: MutableMapping[Any, "Dependant"] = field(default_factory=dict)
-    _constructing: Set[Any] = field(default_factory=set)
+class DependantMap:
+    _map: MutableMapping[Type[Any], "Dependant"] = field(default_factory=dict)
+    _constructing: Set[Type[Any]] = field(default_factory=set)
 
-    def __contains__(self, key: Any) -> bool:
-        return key in self._cache
+    def chain(self) -> "DependantMap":
+        return DependantMap(ChainMap({}, self._map), set(self._constructing))
 
-    def __getitem__(self, key: Any) -> Dependant:
-        return self._cache[key]
+    def __contains__(self, target: Type[Any]) -> bool:
+        return target in self._map
 
-    def __setitem__(self, key: Any, dep: Dependant) -> None:
-        self._cache[key] = dep
+    def __getitem__(self, target: Type[Any]) -> Dependant:
+        return self._map[target]
+
+    def __setitem__(self, target: Type[Any], dep: Dependant) -> None:
+        self._map[target] = dep
+
+    def clear(self) -> None:
+        self._map.clear()
 
     @contextmanager
-    def cycle_guard(self, key: Any) -> Iterator[None]:
-        if key in self._constructing:
-            raise CycleError(f"Cycle Detected construction dependency for {key}")
-        self._constructing.add(key)
+    def cycle_guard(self, target: Type[Any]) -> Iterator[None]:
+        if target in self._constructing:
+            raise CycleError(f"Cycle Detected construction dependency for {target}")
+        self._constructing.add(target)
         try:
             yield
         finally:
-            self._constructing.remove(key)
-
-    def chain(self) -> "DependantCache":
-        return DependantCache(ChainMap({}, self._cache), set(self._constructing))
+            self._constructing.remove(target)
 
 
 def create_dependant(
-    key: Any,
-    func: Callable[..., Any],
     *,
-    cache: DependantCache,
-    override: bool = False,
-    store: bool = True,
+    binding: Binding,
+    bindings: BindingMap,
+    dependants: DependantMap,
+    use_cached: bool = True,
+    update_cached: bool = True,
 ) -> Dependant:
-    if not override and key in cache:
-        return cache[key]
+    if use_cached and binding.target in dependants:
+        return dependants[binding.target]
 
-    with cache.cycle_guard(key):
-        signature = inspect.signature(func)
-        res = Dependant(
-            key=key,
+    with dependants.cycle_guard(binding.target):
+        signature = inspect.signature(binding.func)
+        dependant = Dependant(
+            target=binding.target,
             args={
-                key: create_dependant(
-                    key=param.annotation,
-                    func=param.annotation,
-                    cache=cache,
-                    override=False,
-                    store=True,
+                name: create_dependant(
+                    binding=create_binding(
+                        func=param.annotation,
+                        eager=binding.eager,
+                        bindings=bindings,
+                    ),
+                    bindings=bindings,
+                    dependants=dependants,
                 )
-                for key, param in signature.parameters.items()
+                for name, param in signature.parameters.items()
             },
-            func=func,
+            func=binding.func,
         )
-    if store:
-        cache[key] = res
 
-    return res
+    if update_cached:
+        dependants[binding.target] = dependant
+
+    return dependant

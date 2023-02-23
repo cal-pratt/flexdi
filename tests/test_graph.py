@@ -162,7 +162,7 @@ def test_provider_lambda() -> None:
         dep1: Foo
 
     graph = FlexGraph()
-    graph.bind(lambda: Foo(2), target=Foo)
+    graph.bind(lambda: Foo(2), resolves=Foo)
 
     with graph:
         res = graph.resolve(Bar)
@@ -185,7 +185,7 @@ def test_provider_interface_map() -> None:
         dep1: Foo
 
     graph = FlexGraph()
-    graph.bind(FooChild, target=Foo)
+    graph.bind(FooChild, resolves=Foo)
 
     with graph:
         res = graph.resolve(Bar)
@@ -222,7 +222,7 @@ def test_provider_clazz_mapping() -> None:
 
     graph = FlexGraph()
 
-    @graph.bind(target=int)
+    @graph.bind(resolves=int)
     def value_provider() -> Any:
         return 3
 
@@ -263,11 +263,11 @@ def test_provider_annotated_mapping() -> None:
 
     graph = FlexGraph()
 
-    @graph.bind(target=Annotated[int, "value1"])
+    @graph.bind(resolves=Annotated[int, "value1"])
     def value1_provider() -> int:
         return 123
 
-    @graph.bind(target=Annotated[int, "value2"])
+    @graph.bind(resolves=Annotated[int, "value2"])
     def value2_provider() -> int:
         return 456
 
@@ -290,7 +290,7 @@ def test_provider_annotated_chained() -> None:
     def value1_provider() -> Annotated[int, "value1"]:
         return 123
 
-    @graph.bind(target=Annotated[int, "value2"])
+    @graph.bind(resolves=Annotated[int, "value2"])
     def value2_provider(value1: Annotated[int, "value1"]) -> int:
         return value1 + 111
 
@@ -463,19 +463,19 @@ def test_all_providers() -> None:
 
     graph = FlexGraph()
 
-    @graph.bind(target=Annotated[int, "value1"])
+    @graph.bind(resolves=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @graph.bind(target=Annotated[int, "value2"])
+    @graph.bind(resolves=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @graph.bind(target=Annotated[int, "value3"])
+    @graph.bind(resolves=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @graph.bind(target=Annotated[int, "value4"])
+    @graph.bind(resolves=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
@@ -499,19 +499,19 @@ async def test_async_all_providers() -> None:
 
     graph = FlexGraph()
 
-    @graph.bind(target=Annotated[int, "value1"])
+    @graph.bind(resolves=Annotated[int, "value1"])
     def value1() -> int:
         return 1
 
-    @graph.bind(target=Annotated[int, "value2"])
+    @graph.bind(resolves=Annotated[int, "value2"])
     async def value2() -> int:
         return 2
 
-    @graph.bind(target=Annotated[int, "value3"])
+    @graph.bind(resolves=Annotated[int, "value3"])
     def value3() -> Iterator[int]:
         yield 3
 
-    @graph.bind(target=Annotated[int, "value4"])
+    @graph.bind(resolves=Annotated[int, "value4"])
     async def value4() -> AsyncIterator[int]:
         yield 4
 
@@ -623,3 +623,39 @@ def test_async_gen_picks_correct_loop() -> None:
         graph.resolve(func3)
 
     assert events == [1, 2, 3, 4, 5]
+
+
+def test_bindings_out_of_order() -> None:
+    """
+    If we get dependencies in a different order than their dependency resolution
+    order, we should be able to construct the correct graph regardless.
+
+    In this case we have dependencies Buzz -> Fizz -> Foo
+    If we bind Bar to a target of Foo after we have already made a binding to
+    resolve Fizz, then the Fizz dependency should still be updated.
+    """
+
+    graph = FlexGraph()
+
+    class Foo:
+        pass
+
+    class Bar(Foo):
+        pass
+
+    @dataclass
+    class Fizz:
+        foo: Foo
+
+    @dataclass
+    class Buzz:
+        fizz: Fizz
+
+    graph.bind(Buzz)
+    graph.bind(Bar, resolves=Foo)
+
+    with graph:
+        buzz = graph.resolve(Buzz)
+        assert isinstance(buzz, Buzz)
+        assert isinstance(buzz.fizz, Fizz)
+        assert isinstance(buzz.fizz.foo, Bar)

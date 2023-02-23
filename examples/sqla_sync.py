@@ -37,7 +37,7 @@ def execute(session: Session) -> int:
 # we clean up any dependencies which require teardown
 def main() -> int:
     with graph:
-        return graph.resolve(main)
+        return graph.resolve(execute)
 
 
 if __name__ == "__main__":

@@ -25,9 +25,16 @@ def get_cached_class_args(clazz: Type[Any]) -> Tuple[Type[Any], Sequence[Type[An
     return clazz_origin, clazz_args
 
 
-def provider_return_type(obj: Any) -> Any:
+def determine_return_type(obj: Any) -> Any:
+    if isinstance(obj, type):
+        return obj
+
     signature = inspect.signature(obj)
     return_type = signature.return_annotation
+
+    if return_type is signature.empty:
+        return obj
+
     clazz_origin, clazz_args = get_cached_class_args(return_type)
 
     if clazz_origin is collections.abc.Iterator:

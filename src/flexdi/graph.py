@@ -6,7 +6,6 @@ from typing import (
     Callable,
     Coroutine,
     Iterator,
-    List,
     Optional,
     Type,
     TypeVar,
@@ -15,10 +14,10 @@ from typing import (
     overload,
 )
 
-from .dependant import Dependant, DependantCache, create_dependant
+from .binding import BindingMap, create_binding
+from .dependant import DependantMap, create_dependant
 from .errors import SetupError
-from .invoker import CallCache, call_dependant
-from .util import provider_return_type
+from .instance import InstanceMap, create_instance
 
 T = TypeVar("T")
 Func = TypeVar("Func", bound=Callable[..., Any])
@@ -26,44 +25,58 @@ Func = TypeVar("Func", bound=Callable[..., Any])
 
 class FlexGraph:
     def __init__(self) -> None:
-        self._eager_deps: List[Dependant] = []
-        self._deps_cache = DependantCache()
-        self._call_cache = CallCache()
         self._stack: Optional[AsyncExitStack] = None
+        self._bindings = BindingMap()
+        self._dependants = DependantMap()
+        self._instances = InstanceMap()
+
+    def chain(self) -> "FlexGraph":
+        if not self._stack:
+            raise SetupError("FlexPack not opened. Cannot be chained.")
+
+        flex = FlexGraph()
+        flex._bindings = self._bindings.chain()
+        flex._dependants = self._dependants.chain()
+        flex._instances = self._instances.chain()
+        return flex
 
     @overload
-    def bind(self, func: Func, *, eager: bool = False, target: Any = None) -> Func:
+    def bind(self, func: Func, *, eager: bool = False, resolves: Any = None) -> Func:
         ...
 
     @overload
     def bind(
-        self, *, eager: bool = False, target: Any = None
+        self, *, eager: bool = False, resolves: Any = None
     ) -> Callable[[Func], Func]:
         ...
 
     def bind(
-        self, func: Optional[Func] = None, *, eager: bool = False, target: Any = None
+        self, func: Optional[Func] = None, *, eager: bool = False, resolves: Any = None
     ) -> Union[Func, Callable[[Func], Func]]:
-        if func:
-            self._bind(func, eager=eager, target=target)
-            return func
-
-        def wrapper(_func: Func) -> Func:
-            self._bind(_func, eager=eager, target=target)
-            return _func
-
-        return wrapper
-
-    def _bind(self, func: Any, *, eager: bool = False, target: Any) -> None:
         if self._stack:
             raise SetupError("FlexPack already opened. Cannot add additional bindings.")
 
-        if target is None:
-            target = provider_return_type(func)
+        if func:
+            create_binding(
+                func=func,
+                target=resolves,
+                eager=eager,
+                bindings=self._bindings,
+                use_cached=False,
+            )
+            return func
 
-        dep = create_dependant(target, func, cache=self._deps_cache, override=True)
-        if eager:
-            self._eager_deps.append(dep)
+        def wrapper(_func: Func) -> Func:
+            create_binding(
+                target=resolves,
+                func=_func,
+                eager=eager,
+                bindings=self._bindings,
+                use_cached=False,
+            )
+            return _func
+
+        return wrapper
 
     def __enter__(self) -> "FlexGraph":
         return self.open()
@@ -79,13 +92,19 @@ class FlexGraph:
         if not self._stack:
             self._stack = stack = AsyncExitStack()
             try:
-                for dep in self._eager_deps:
-                    if dep.key not in self._call_cache:
-                        await call_dependant(
-                            dep,
-                            cache=self._call_cache,
+                for _, binding in list(self._bindings.items()):
+                    create_dependant(
+                        binding=binding,
+                        bindings=self._bindings,
+                        dependants=self._dependants,
+                    )
+                for _, binding in list(self._bindings.items()):
+                    if binding.eager:
+                        await create_instance(
+                            dependant=self._dependants[binding.target],
+                            instances=self._instances,
+                            dependants=self._dependants,
                             stack=stack,
-                            override=True,
                         )
             except:  # noqa: E722
                 await self.aclose()
@@ -103,21 +122,13 @@ class FlexGraph:
         loop.run_until_complete(self.aclose())
 
     async def aclose(self) -> None:
-        self._call_cache = CallCache()
+        self._instances.clear()
+        self._dependants.clear()
         if stack := self._stack:
             try:
                 await stack.aclose()
             finally:
                 self._stack = None
-
-    def chain(self) -> "FlexGraph":
-        if not self._stack:
-            raise SetupError("FlexPack not opened. Cannot be chained.")
-
-        flex = FlexGraph()
-        flex._call_cache = self._call_cache.chain()
-        flex._deps_cache = self._deps_cache.chain()
-        return flex
 
     @overload
     def resolve(self, func: Type[T]) -> T:
@@ -177,6 +188,20 @@ class FlexGraph:
         if not (stack := self._stack):
             raise SetupError("FlexPack not opened. Cannot be invoked.")
 
-        dep = create_dependant(func, func, cache=self._deps_cache)
-        res = await call_dependant(dep, cache=self._call_cache, stack=stack)
-        return cast(T, res)
+        binding = create_binding(
+            func=func,
+            target=func,  # type: ignore
+            bindings=self._bindings,
+        )
+        dependant = create_dependant(
+            binding=binding,
+            bindings=self._bindings,
+            dependants=self._dependants,
+        )
+        instance = await create_instance(
+            dependant=dependant,
+            instances=self._instances,
+            dependants=self._dependants,
+            stack=stack,
+        )
+        return cast(T, instance)
