@@ -664,3 +664,39 @@ def test_bindings_out_of_order() -> None:
         assert isinstance(buzz, Buzz)
         assert isinstance(buzz.fizz, Fizz)
         assert isinstance(buzz.fizz.foo, Bar)
+
+
+def test_entrypoints() -> None:
+    graph = FlexGraph()
+
+    class Foo:
+        pass
+
+    @graph.entrypoint
+    def main1(foo: Foo) -> Foo:
+        return foo
+
+    @graph.entrypoint
+    async def main2(foo: Foo) -> Foo:
+        return foo
+
+    @graph.entrypoint()
+    def main3(foo: Foo) -> Foo:
+        return foo
+
+    @graph.entrypoint()
+    async def main4(foo: Foo) -> Foo:
+        return foo
+
+    res1 = main1()
+    res2 = main2()
+    res3 = main3()
+    res4 = main4()
+    assert_type(res1, Foo)
+    assert_type(res2, Foo)
+    assert_type(res3, Foo)
+    assert_type(res4, Foo)
+    assert isinstance(res1, Foo)
+    assert isinstance(res2, Foo)
+    assert isinstance(res3, Foo)
+    assert isinstance(res4, Foo)

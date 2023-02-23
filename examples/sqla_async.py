@@ -1,4 +1,3 @@
-import asyncio
 import sys
 from typing import AsyncIterator
 
@@ -25,17 +24,11 @@ async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnecti
         yield conn
 
 
-async def execute(conn: AsyncConnection) -> int:
+@graph.entrypoint
+async def main(conn: AsyncConnection) -> int:
     print((await conn.execute(text("SELECT datetime('now');"))).one())
     return 0
 
 
-# If already within an async context, then you can use the
-# async versions of the graph methods.
-async def main() -> int:
-    async with graph:
-        return await graph.aresolve(execute)
-
-
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(main())

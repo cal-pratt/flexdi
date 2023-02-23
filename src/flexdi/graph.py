@@ -1,12 +1,15 @@
 import asyncio
+import inspect
 from contextlib import AsyncExitStack
 from typing import (
     Any,
     AsyncIterator,
+    Awaitable,
     Callable,
     Coroutine,
     Iterator,
     Optional,
+    Protocol,
     Type,
     TypeVar,
     Union,
@@ -23,6 +26,19 @@ T = TypeVar("T")
 Func = TypeVar("Func", bound=Callable[..., Any])
 
 
+class EntryPointDecorator(Protocol):
+    @overload
+    def __call__(self, func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[[], T]:
+        ...
+
+    @overload
+    def __call__(self, func: Callable[..., T]) -> Callable[[], T]:
+        ...
+
+    def __call__(self, func: Any) -> Any:
+        ...
+
+
 class FlexGraph:
     def __init__(self) -> None:
         self._stack: Optional[AsyncExitStack] = None
@@ -32,7 +48,7 @@ class FlexGraph:
 
     def chain(self) -> "FlexGraph":
         if not self._stack:
-            raise SetupError("FlexPack not opened. Cannot be chained.")
+            raise SetupError("FlexGraph not opened. Cannot be chained.")
 
         flex = FlexGraph()
         flex._bindings = self._bindings.chain()
@@ -54,17 +70,9 @@ class FlexGraph:
         self, func: Optional[Func] = None, *, eager: bool = False, resolves: Any = None
     ) -> Union[Func, Callable[[Func], Func]]:
         if self._stack:
-            raise SetupError("FlexPack already opened. Cannot add additional bindings.")
-
-        if func:
-            create_binding(
-                func=func,
-                target=resolves,
-                eager=eager,
-                bindings=self._bindings,
-                use_cached=False,
+            raise SetupError(
+                "FlexGraph already opened. Cannot add additional bindings."
             )
-            return func
 
         def wrapper(_func: Func) -> Func:
             create_binding(
@@ -76,7 +84,7 @@ class FlexGraph:
             )
             return _func
 
-        return wrapper
+        return wrapper(func) if func else wrapper
 
     def __enter__(self) -> "FlexGraph":
         return self.open()
@@ -175,7 +183,7 @@ class FlexGraph:
         ...
 
     @overload
-    async def aresolve(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
+    async def aresolve(self, func: Callable[..., Awaitable[T]]) -> T:
         # Handle async function
         ...
 
@@ -186,7 +194,7 @@ class FlexGraph:
 
     async def aresolve(self, func: Callable[..., T]) -> T:
         if not (stack := self._stack):
-            raise SetupError("FlexPack not opened. Cannot be invoked.")
+            raise SetupError("FlexGraph not opened. Cannot be invoked.")
 
         binding = create_binding(
             func=func,
@@ -205,3 +213,39 @@ class FlexGraph:
             stack=stack,
         )
         return cast(T, instance)
+
+    @overload
+    def entrypoint(
+        self, func: Callable[..., Coroutine[Any, Any, T]]
+    ) -> Callable[[], T]:
+        ...
+
+    @overload
+    def entrypoint(self, func: Callable[..., T]) -> Callable[[], T]:
+        ...
+
+    @overload
+    def entrypoint(self) -> EntryPointDecorator:
+        ...
+
+    def entrypoint(self, func: Any = None) -> Any:
+        if self._stack:
+            raise SetupError("FlexGraph already opened. Cannot add entrypoint.")
+
+        def _wrapper(_func: Callable[..., T]) -> Callable[[], T]:
+            async def _amain() -> T:
+                async with self:
+                    return await self.aresolve(_func)
+
+            def _main() -> T:
+                if self._stack:
+                    raise SetupError(
+                        "FlexGraph already opened. Cannot run additional entrypoint."
+                    )
+
+                loop = asyncio.get_event_loop()
+                return loop.run_until_complete(_amain())
+
+            return _main
+
+        return _wrapper(func) if func else _wrapper

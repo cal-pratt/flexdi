@@ -28,17 +28,15 @@ def provide_session(engine: Engine) -> Iterator[Session]:
         yield session
 
 
-def execute(session: Session) -> int:
+# An entrypoint is a convenience method for creating no argument
+# version of a function or coroutine. You should typically only
+# have one entry point used in your applications.
+@graph.entrypoint
+def main(session: Session) -> int:
     print(session.execute(text("SELECT datetime('now');")).one())
     return 0
 
 
-# We always call the graph from a with statement to ensure
-# we clean up any dependencies which require teardown
-def main() -> int:
-    with graph:
-        return graph.resolve(execute)
-
-
+# Notice that we call main with no arguments!
 if __name__ == "__main__":
     sys.exit(main())
