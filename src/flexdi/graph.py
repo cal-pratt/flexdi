@@ -41,6 +41,7 @@ class EntryPointDecorator(Protocol):
 class FlexGraph:
     def __init__(self) -> None:
         self._stack: Optional[AsyncExitStack] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._bindings = BindingMap()
         self._dependants = DependantMap()
         self._instances = InstanceMap()
@@ -85,17 +86,10 @@ class FlexGraph:
 
         return wrapper(func) if func else wrapper
 
-    def __enter__(self) -> "FlexGraph":
-        return self.open()
-
     async def __aenter__(self) -> "FlexGraph":
-        return await self.aopen()
+        return await self.open()
 
-    def open(self) -> "FlexGraph":
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.aopen())
-
-    async def aopen(self) -> "FlexGraph":
+    async def open(self) -> "FlexGraph":
         if not self._stack:
             self._stack = stack = AsyncExitStack()
             try:
@@ -114,21 +108,14 @@ class FlexGraph:
                             stack=stack,
                         )
             except:  # noqa: E722
-                await self.aclose()
+                await self.close()
                 raise
         return self
 
-    def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        self.close()
-
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        await self.aclose()
+        await self.close()
 
-    def close(self) -> None:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.aclose())
-
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         self._instances.clear()
         self._dependants.clear()
         if stack := self._stack:
@@ -138,60 +125,31 @@ class FlexGraph:
                 self._stack = None
 
     @overload
-    def resolve(self, func: Type[T]) -> T:
+    async def resolve(self, func: Type[T]) -> T:
         # Handle class
         ...
 
     @overload
-    def resolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
+    async def resolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
         # Handle async generators
         ...
 
     @overload
-    def resolve(self, func: Callable[..., Iterator[T]]) -> T:
+    async def resolve(self, func: Callable[..., Iterator[T]]) -> T:
         # Handle generators
         ...
 
     @overload
-    def resolve(self, func: Callable[..., Coroutine[Any, Any, T]]) -> T:
+    async def resolve(self, func: Callable[..., Awaitable[T]]) -> T:
         # Handle async function
         ...
 
     @overload
-    def resolve(self, func: Callable[..., T]) -> T:
+    async def resolve(self, func: Callable[..., T]) -> T:
         # Handle function
         ...
 
-    def resolve(self, func: Callable[..., T]) -> T:
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.aresolve(func))
-
-    @overload
-    async def aresolve(self, func: Type[T]) -> T:
-        # Handle class
-        ...
-
-    @overload
-    async def aresolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
-        # Handle async generators
-        ...
-
-    @overload
-    async def aresolve(self, func: Callable[..., Iterator[T]]) -> T:
-        # Handle generators
-        ...
-
-    @overload
-    async def aresolve(self, func: Callable[..., Awaitable[T]]) -> T:
-        # Handle async function
-        ...
-
-    @overload
-    async def aresolve(self, func: Callable[..., T]) -> T:
-        # Handle function
-        ...
-
-    async def aresolve(self, func: Callable[..., T]) -> T:
+    async def resolve(self, func: Callable[..., T]) -> T:
         if not (stack := self._stack):
             raise SetupError("FlexGraph not opened. Cannot be invoked.")
 
@@ -234,7 +192,7 @@ class FlexGraph:
         def _wrapper(_func: Callable[..., T]) -> Callable[[], T]:
             async def _amain() -> T:
                 async with self:
-                    return await self.aresolve(_func)
+                    return await self.resolve(_func)
 
             def _main() -> T:
                 if self._stack:
@@ -243,7 +201,11 @@ class FlexGraph:
                     )
 
                 loop = asyncio.get_event_loop()
-                return loop.run_until_complete(_amain())
+                if not loop.is_running():
+                    return loop.run_until_complete(_amain())
+                else:
+                    task = asyncio.run_coroutine_threadsafe(_amain(), loop)
+                    return task.result()
 
             return _main
 
