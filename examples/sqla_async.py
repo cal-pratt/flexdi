@@ -25,9 +25,8 @@ async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnecti
 
 
 @graph.entrypoint
-async def main(conn: AsyncConnection) -> int:
+async def main(conn: AsyncConnection) -> None:
     print((await conn.execute(text("SELECT datetime('now');"))).one())
-    return 0
 
 
 if __name__ == "__main__":

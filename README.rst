@@ -83,9 +83,9 @@ A simple example of an application with SQLAlchemy dependencies:
     graph = FlexGraph()
     
     
-    # Let's add a binding for an Engine. Anything that requires an Engine will
-    # now fetch it from provide_engine.
-    # FlexGraph uses the functions return type annotation to perform the binding.
+    # Let's add a binding for an Engine.
+    # The binding will be used for anything that requires an Engine.
+    # FlexGraph uses the return type annotation to create bindings.
     @graph.bind
     def provide_engine() -> Engine:
         return create_engine("sqlite://")
@@ -100,13 +100,12 @@ A simple example of an application with SQLAlchemy dependencies:
             yield session
     
     
-    # An entrypoint is a convenience method for creating no argument
+    # An entrypoint is a convenience method for a creating no argument
     # version of a function or coroutine. You should typically only
-    # have one entry point used in your applications.
+    # have one entrypoint used in your applications.
     @graph.entrypoint
-    def main(session: Session) -> int:
+    def main(session: Session) -> None:
         print(session.execute(text("SELECT datetime('now');")).one())
-        return 0
     
     
     # Notice that we call main with no arguments!
@@ -145,9 +144,8 @@ The same example, but using async code:
     
     
     @graph.entrypoint
-    async def main(conn: AsyncConnection) -> int:
+    async def main(conn: AsyncConnection) -> None:
         print((await conn.execute(text("SELECT datetime('now');"))).one())
-        return 0
     
     
     if __name__ == "__main__":
