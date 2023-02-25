@@ -4,6 +4,8 @@ from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from functools import lru_cache
 from typing import Any, Sequence, Tuple, Type, get_args, get_origin
 
+from flexdi.errors import UntypedError
+
 
 @lru_cache(maxsize=None)
 def get_cached_class_args(clazz: Type[Any]) -> Tuple[Type[Any], Sequence[Type[Any]]]:
@@ -34,13 +36,17 @@ def determine_return_type(obj: Any) -> Any:
     return_type = signature.return_annotation
 
     if return_type is signature.empty:
-        return obj
+        raise UntypedError(f"Could not determine return type for {obj}")
 
     clazz_origin, clazz_args = get_cached_class_args(return_type)
 
     if clazz_origin is collections.abc.Iterator:
         return clazz_args[0]
     elif clazz_origin is collections.abc.AsyncIterator:
+        return clazz_args[0]
+    elif clazz_origin is collections.abc.Generator:
+        return clazz_args[0]
+    elif clazz_origin is collections.abc.AsyncGenerator:
         return clazz_args[0]
 
     return return_type
