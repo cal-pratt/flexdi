@@ -23,4 +23,5 @@ Resources
    sync_example
    async_example
    testing
+   fastapi
    alternatives
