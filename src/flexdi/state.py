@@ -85,6 +85,15 @@ class FlexState:
         if update_cached:
             self._bindings[target] = binding
 
+            # If we're updating the cached binding to replace it, then we should
+            # remove any of the resolved dependant trees and instances.
+            if binding.target in self._dependants:
+                del self._dependants[binding.target]
+            if binding.target in self._instances:
+                del self._instances[binding.target]
+            if binding.func in self._instances:
+                del self._instances[binding.func]
+
         return binding
 
     def dependant(
