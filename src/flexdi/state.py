@@ -5,6 +5,7 @@ from typing import Any, Callable, Optional, Type, TypeVar
 from .binding import Binding, BindingMap
 from .dependant import Dependant, DependantMap
 from .errors import ImplicitBindingError
+from .implicit import is_implicitbinding
 from .instance import InstanceMap
 from .util import determine_return_type, invoke_callable
 
@@ -69,7 +70,7 @@ class FlexState:
         if use_cached and target in self._bindings:
             return self._bindings[target]
 
-        if not allow_implicit:
+        if not (allow_implicit or is_implicitbinding(target)):
             raise ImplicitBindingError(
                 f"Requested a binding for {func} that was not explicitly "
                 "marked for binding."

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 # Import of assert_type not available from typing until 3.11
 from typing_extensions import Annotated, assert_type
 
-from flexdi import CycleError, FlexGraph
+from flexdi import CycleError, FlexGraph, implicitbinding
 from flexdi.errors import ImplicitBindingError
 
 
@@ -786,3 +786,89 @@ async def test_allow_unbound_callable_with_explicit_bindings() -> None:
         res = await graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.foo, Foo)
+
+
+@pytest.mark.asyncio
+async def test_marked_implicitbinding() -> None:
+    """
+    When defining classes before creating an instance of the graph we can
+    declare that they are allowed to be implicitly bound to the dependency
+    tree. This helps reduce boilerplate in the main further for user classes
+    that are fully resolvable.
+    """
+
+    @implicitbinding
+    @dataclass
+    class Foo:
+        pass
+
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    graph = FlexGraph()
+    async with graph:
+        res = await graph.resolve(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.foo, Foo)
+
+
+@pytest.mark.asyncio
+async def test_marked_implicitbinding_still_invalid() -> None:
+    """
+    Even if a direct dependency of your class is marked as an implicit binding,
+    it's sub-dependencies must still be bound, or be themselves implicit.
+
+    This tests the case where the sub-dependency is not bound.
+    """
+
+    @dataclass
+    class Foo:
+        pass
+
+    @implicitbinding
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    @dataclass
+    class Fizz:
+        bar: Bar
+
+    graph = FlexGraph()
+    async with graph:
+        with pytest.raises(ImplicitBindingError):
+            await graph.resolve(Fizz)
+
+
+@pytest.mark.asyncio
+async def test_marked_implicitbinding_with_explicit_deps() -> None:
+    """
+    Even if a direct dependency of your class is marked as an implicit binding,
+    it's sub-dependencies must still be bound, or be themselves implicit.
+
+    This tests the case where the sub-dependency is bound explicitly.
+    """
+
+    @dataclass
+    class Foo:
+        pass
+
+    @implicitbinding
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    @dataclass
+    class Fizz:
+        bar: Bar
+
+    graph = FlexGraph()
+    # Explicitly bind Foo.
+    graph.bind(Foo)
+
+    async with graph:
+        res = await graph.resolve(Fizz)
+        assert isinstance(res, Fizz)
+        assert isinstance(res.bar, Bar)
+        assert isinstance(res.bar.foo, Foo)
