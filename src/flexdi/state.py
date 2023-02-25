@@ -4,6 +4,7 @@ from typing import Any, Callable, Optional, Type, TypeVar
 
 from .binding import Binding, BindingMap
 from .dependant import Dependant, DependantMap
+from .errors import ImplicitBindingError
 from .instance import InstanceMap
 from .util import determine_return_type, invoke_callable
 
@@ -59,6 +60,7 @@ class FlexState:
         *,
         target: Optional[Type[Any]] = None,
         eager: bool = False,
+        allow_implicit: bool = True,
         use_cached: bool = True,
         update_cached: bool = True,
     ) -> Binding:
@@ -66,6 +68,12 @@ class FlexState:
 
         if use_cached and target in self._bindings:
             return self._bindings[target]
+
+        if not allow_implicit:
+            raise ImplicitBindingError(
+                f"Requested a binding for {func} that was not explicitly "
+                "marked for binding."
+            )
 
         binding = Binding(
             target=target,
@@ -99,6 +107,7 @@ class FlexState:
                             param.annotation,
                             target=param.annotation,
                             eager=binding.eager,
+                            allow_implicit=False,
                         )
                     )
                     for name, param in signature.parameters.items()

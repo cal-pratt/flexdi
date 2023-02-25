@@ -12,3 +12,7 @@ class SetupError(FlexError):
 
 class UntypedError(FlexError):
     pass
+
+
+class ImplicitBindingError(FlexError):
+    pass
