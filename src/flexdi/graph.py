@@ -75,6 +75,9 @@ class FlexGraph:
         return wrapper(func) if func else wrapper
 
     def bind_instance(self, value: T, *, resolves: Any = None) -> T:
+        if self._state.opened:
+            raise SetupError("FlexGraph opened. Cannot be bound.")
+
         resolves = resolves or type(value)
         self._state.binding(
             lambda: value, target=resolves, eager=True, use_cached=False
@@ -85,6 +88,8 @@ class FlexGraph:
         return await self.open()
 
     async def open(self) -> "FlexGraph":
+        # Bind the current instance of the FlexGraph to any resolution.
+        self.bind_instance(self)
         await self._state.open()
         return self
 

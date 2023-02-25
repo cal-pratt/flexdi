@@ -1,4 +1,3 @@
-from collections import ChainMap
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, MutableMapping, Set, Type
@@ -19,7 +18,7 @@ class DependantMap:
     _constructing: Set[Type[Any]] = field(default_factory=set)
 
     def chain(self) -> "DependantMap":
-        return DependantMap(ChainMap({}, self._map), set(self._constructing))
+        return DependantMap({**self._map}, set(self._constructing))
 
     def __contains__(self, target: Type[Any]) -> bool:
         return target in self._map
@@ -29,6 +28,9 @@ class DependantMap:
 
     def __setitem__(self, target: Type[Any], dep: Dependant) -> None:
         self._map[target] = dep
+
+    def __delitem__(self, target: Type[Any]) -> None:
+        del self._map[target]
 
     def clear(self) -> None:
         self._map.clear()
