@@ -1,4 +1,5 @@
 .. include:: header.rst
+.. include:: goals.rst
 
 Installation
 ============
@@ -18,4 +19,8 @@ Resources
    :includehidden:
    :maxdepth: 2
 
-   Overview <overview/index.rst>
+   overview
+   sync_example
+   async_example
+   testing
+   alternatives

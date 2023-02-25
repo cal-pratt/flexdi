@@ -140,3 +140,4 @@ cython_debug/
 
 test.py
 .vscode/
+mydb.db

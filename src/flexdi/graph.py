@@ -1,11 +1,12 @@
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import contextmanager
 from typing import (
     Any,
     AsyncIterator,
     Awaitable,
     Callable,
     Coroutine,
+    Generic,
     Iterator,
     Optional,
     Protocol,
@@ -16,22 +17,31 @@ from typing import (
     overload,
 )
 
-from .binding import BindingMap, create_binding
-from .dependant import DependantMap, create_dependant
 from .errors import SetupError
-from .instance import InstanceMap, create_instance
+from .state import FlexState
 
 T = TypeVar("T")
+T_cov = TypeVar("T_cov", covariant=True)
 Func = TypeVar("Func", bound=Callable[..., Any])
+AsyncEntry = Callable[..., Coroutine[Any, Any, T]]
+Entry = Callable[..., T]
 
 
-class EntryPointDecorator(Protocol):
+class Entrypoint(Protocol[T_cov]):
+    def __call__(self) -> T_cov:
+        raise NotImplementedError
+
+    async def aio(self) -> T_cov:
+        raise NotImplementedError
+
+
+class EntrypointDecorator(Protocol):
     @overload
-    def __call__(self, func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[[], T]:
+    def __call__(self, func: AsyncEntry[T]) -> Entrypoint[T]:
         ...
 
     @overload
-    def __call__(self, func: Callable[..., T]) -> Callable[[], T]:
+    def __call__(self, func: Entry[T]) -> Entrypoint[T]:
         ...
 
     def __call__(self, func: Any) -> Any:
@@ -40,21 +50,7 @@ class EntryPointDecorator(Protocol):
 
 class FlexGraph:
     def __init__(self) -> None:
-        self._stack: Optional[AsyncExitStack] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._bindings = BindingMap()
-        self._dependants = DependantMap()
-        self._instances = InstanceMap()
-
-    def chain(self) -> "FlexGraph":
-        if not self._stack:
-            raise SetupError("FlexGraph not opened. Cannot be chained.")
-
-        flex = FlexGraph()
-        flex._bindings = self._bindings.chain()
-        flex._dependants = self._dependants.chain()
-        flex._instances = self._instances.chain()
-        return flex
+        self._state = FlexState()
 
     @overload
     def bind(self, func: Func, *, eager: bool = False, resolves: Any = None) -> Func:
@@ -69,60 +65,34 @@ class FlexGraph:
     def bind(
         self, func: Optional[Func] = None, *, eager: bool = False, resolves: Any = None
     ) -> Union[Func, Callable[[Func], Func]]:
-        if self._stack:
-            raise SetupError(
-                "FlexGraph already opened. Cannot add additional bindings."
-            )
-
         def wrapper(_func: Func) -> Func:
-            create_binding(
-                target=resolves,
-                func=_func,
-                eager=eager,
-                bindings=self._bindings,
-                use_cached=False,
-            )
+            if self._state.opened:
+                raise SetupError("FlexGraph opened. Cannot be bound.")
+
+            self._state.binding(_func, target=resolves, eager=eager, use_cached=False)
             return _func
 
         return wrapper(func) if func else wrapper
+
+    def bind_instance(self, value: T, *, resolves: Any = None) -> T:
+        resolves = resolves or type(value)
+        self._state.binding(
+            lambda: value, target=resolves, eager=True, use_cached=False
+        )
+        return value
 
     async def __aenter__(self) -> "FlexGraph":
         return await self.open()
 
     async def open(self) -> "FlexGraph":
-        if not self._stack:
-            self._stack = stack = AsyncExitStack()
-            try:
-                for _, binding in list(self._bindings.items()):
-                    create_dependant(
-                        binding=binding,
-                        bindings=self._bindings,
-                        dependants=self._dependants,
-                    )
-                for _, binding in list(self._bindings.items()):
-                    if binding.eager:
-                        await create_instance(
-                            dependant=self._dependants[binding.target],
-                            instances=self._instances,
-                            dependants=self._dependants,
-                            stack=stack,
-                        )
-            except:  # noqa: E722
-                await self.close()
-                raise
+        await self._state.open()
         return self
 
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await self.close()
 
     async def close(self) -> None:
-        self._instances.clear()
-        self._dependants.clear()
-        if stack := self._stack:
-            try:
-                await stack.aclose()
-            finally:
-                self._stack = None
+        await self._state.close()
 
     @overload
     async def resolve(self, func: Type[T]) -> T:
@@ -150,63 +120,57 @@ class FlexGraph:
         ...
 
     async def resolve(self, func: Callable[..., T]) -> T:
-        if not (stack := self._stack):
-            raise SetupError("FlexGraph not opened. Cannot be invoked.")
+        if not self._state.opened:
+            raise SetupError("FlexGraph not opened. Cannot be resolved.")
 
-        binding = create_binding(
-            func=func,
-            target=func,  # type: ignore
-            bindings=self._bindings,
-        )
-        dependant = create_dependant(
-            binding=binding,
-            bindings=self._bindings,
-            dependants=self._dependants,
-        )
-        instance = await create_instance(
-            dependant=dependant,
-            instances=self._instances,
-            dependants=self._dependants,
-            stack=stack,
-        )
-        return cast(T, instance)
+        return cast(T, await self._state.resolve(func))
 
     @overload
-    def entrypoint(
-        self, func: Callable[..., Coroutine[Any, Any, T]]
-    ) -> Callable[[], T]:
+    def entrypoint(self, func: AsyncEntry[T]) -> Entrypoint[T]:
         ...
 
     @overload
-    def entrypoint(self, func: Callable[..., T]) -> Callable[[], T]:
+    def entrypoint(self, func: Entry[T]) -> Entrypoint[T]:
         ...
 
     @overload
-    def entrypoint(self) -> EntryPointDecorator:
+    def entrypoint(self) -> EntrypointDecorator:
         ...
 
     def entrypoint(self, func: Any = None) -> Any:
-        if self._stack:
-            raise SetupError("FlexGraph already opened. Cannot add entrypoint.")
+        class _FuncEntrypoint(Generic[T]):
+            def __init__(_self, _func: Callable[..., T]) -> None:
+                _self._func = _func
 
-        def _wrapper(_func: Callable[..., T]) -> Callable[[], T]:
-            async def _amain() -> T:
-                async with self:
-                    return await self.resolve(_func)
-
-            def _main() -> T:
-                if self._stack:
-                    raise SetupError(
-                        "FlexGraph already opened. Cannot run additional entrypoint."
-                    )
-
-                loop = asyncio.get_event_loop()
-                if not loop.is_running():
-                    return loop.run_until_complete(_amain())
+            async def aio(_self) -> T:
+                if self._state.opened:
+                    return await self.resolve(_self._func)
                 else:
-                    task = asyncio.run_coroutine_threadsafe(_amain(), loop)
-                    return task.result()
+                    async with self:
+                        return await self.resolve(_self._func)
 
-            return _main
+            def __call__(_self) -> T:
+                loop = asyncio.get_event_loop()
+                return loop.run_until_complete(_self.aio())
 
-        return _wrapper(func) if func else _wrapper
+        return _FuncEntrypoint(func) if func else _FuncEntrypoint
+
+    def chain(self) -> "FlexGraph":
+        if not self._state.opened:
+            raise SetupError("FlexGraph not opened. Cannot be chained.")
+
+        graph = FlexGraph()
+        graph._state = self._state.chain()
+        return graph
+
+    @contextmanager
+    def override(self) -> Iterator["FlexGraph"]:
+        if self._state.opened:
+            raise SetupError("FlexGraph already opened. Cannot be overriden.")
+
+        state = self._state
+        try:
+            self._state = self._state.chain()
+            yield self
+        finally:
+            self._state = state

@@ -1,5 +1,6 @@
 import collections.abc
 import inspect
+from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from functools import lru_cache
 from typing import Any, Sequence, Tuple, Type, get_args, get_origin
 
@@ -43,3 +44,19 @@ def determine_return_type(obj: Any) -> Any:
         return clazz_args[0]
 
     return return_type
+
+
+async def invoke_callable(stack: AsyncExitStack, func: Any, args: Any) -> Any:
+    if inspect.isasyncgenfunction(func):
+        async_context_func = asynccontextmanager(func)
+        return await stack.enter_async_context(async_context_func(**args))
+
+    elif inspect.isgeneratorfunction(func):
+        sync_context_func = contextmanager(func)
+        return stack.enter_context(sync_context_func(**args))
+
+    elif inspect.iscoroutinefunction(func):
+        return await func(**args)
+
+    else:
+        return func(**args)
