@@ -1,4 +1,5 @@
 import threading
+from typing import List
 
 from fastapi import FastAPI
 
@@ -15,12 +16,12 @@ class Foo:
 
 
 @app.get("/sync")
-def sync_endpoint(foo: Foo = FlexDepends(Foo)) -> list[int]:
+def sync_endpoint(foo: Foo = FlexDepends(Foo)) -> List[int]:
     thread_id = threading.get_ident()
     return [foo.thread_id, thread_id]
 
 
 @app.get("/async")
-async def async_endpoint(foo: Foo = FlexDepends(Foo)) -> list[int]:
+async def async_endpoint(foo: Foo = FlexDepends(Foo)) -> List[int]:
     thread_id = threading.get_ident()
     return [foo.thread_id, thread_id]
