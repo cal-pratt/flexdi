@@ -21,6 +21,3 @@ these type annotations to perform injection.
   | **FlexDI is still a work in progress and is not yet intended
     for production use-cases.**
   | **Be aware that APIs are likely to change in upcoming releases.**
-
-|
-| The full documentation is available at `flexdi.readthedocs.io <https://flexdi.readthedocs.io>`_.

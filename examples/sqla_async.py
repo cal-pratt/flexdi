@@ -11,7 +11,7 @@ graph = FlexGraph()
 
 @graph.bind
 async def provide_engine() -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine("sqlite+aiosqlite://")
+    engine = create_async_engine("sqlite+aiosqlite:///mydb.db")
     try:
         yield engine
     finally:
@@ -26,7 +26,9 @@ async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnecti
 
 @graph.entrypoint
 async def main(conn: AsyncConnection) -> None:
-    print((await conn.execute(text("SELECT datetime('now');"))).one())
+    statement = text("SELECT name FROM sqlite_master;")
+    for [table_name] in await conn.execute(statement):
+        print(table_name)
 
 
 if __name__ == "__main__":

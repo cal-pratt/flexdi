@@ -118,8 +118,12 @@ def gen_readme() -> str:
 
     return f"""
 {readall("docs/source/header.rst")}
-{readall("docs/source/overview/goals.rst")}
-{readall("docs/source/overview/overview.rst")}
+
+|
+| The full documentation is available at `flexdi.readthedocs.io <https://flexdi.readthedocs.io>`_.
+
+{readall("docs/source/goals.rst")}
+{readall("docs/source/overview.rst")}
 
 Example Usage
 -------------
@@ -136,5 +140,5 @@ The same example, but using async code:
 
 {readall_indent("examples/sqla_async.py")}
 
-{readall("docs/source/overview/alternatives.rst")}
+{readall("docs/source/alternatives.rst")}
 """

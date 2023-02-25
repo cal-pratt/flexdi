@@ -16,14 +16,14 @@ graph = FlexGraph()
 # FlexGraph uses the return type annotation to create bindings.
 @graph.bind
 def provide_engine() -> Engine:
-    return create_engine("sqlite://")
+    return create_engine("sqlite:///mydb.db")
 
 
 # Generator responses can also be used. e.g.
 # - A function returning Iterator[T] binds to T
 # - A function returning AsyncIterator[T] binds to T
 @graph.bind
-def provide_session(engine: Engine) -> Iterator[Session]:
+def provide_connection(engine: Engine) -> Iterator[Session]:
     with Session(engine) as session:
         yield session
 
@@ -32,8 +32,10 @@ def provide_session(engine: Engine) -> Iterator[Session]:
 # version of a function or coroutine. You should typically only
 # have one entrypoint used in your applications.
 @graph.entrypoint
-def main(session: Session) -> None:
-    print(session.execute(text("SELECT datetime('now');")).one())
+def main(conn: Session) -> None:
+    statement = text("SELECT name FROM sqlite_master;")
+    for [table_name] in conn.execute(statement):
+        print(table_name)
 
 
 # Notice that we call main with no arguments!

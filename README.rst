@@ -23,6 +23,7 @@ these type annotations to perform injection.
     for production use-cases.**
   | **Be aware that APIs are likely to change in upcoming releases.**
 
+
 |
 | The full documentation is available at `flexdi.readthedocs.io <https://flexdi.readthedocs.io>`_.
 
@@ -88,14 +89,14 @@ A simple example of an application with SQLAlchemy dependencies:
     # FlexGraph uses the return type annotation to create bindings.
     @graph.bind
     def provide_engine() -> Engine:
-        return create_engine("sqlite://")
+        return create_engine("sqlite:///mydb.db")
     
     
     # Generator responses can also be used. e.g.
     # - A function returning Iterator[T] binds to T
     # - A function returning AsyncIterator[T] binds to T
     @graph.bind
-    def provide_session(engine: Engine) -> Iterator[Session]:
+    def provide_connection(engine: Engine) -> Iterator[Session]:
         with Session(engine) as session:
             yield session
     
@@ -104,8 +105,10 @@ A simple example of an application with SQLAlchemy dependencies:
     # version of a function or coroutine. You should typically only
     # have one entrypoint used in your applications.
     @graph.entrypoint
-    def main(session: Session) -> None:
-        print(session.execute(text("SELECT datetime('now');")).one())
+    def main(conn: Session) -> None:
+        statement = text("SELECT name FROM sqlite_master;")
+        for [table_name] in conn.execute(statement):
+            print(table_name)
     
     
     # Notice that we call main with no arguments!
@@ -130,7 +133,7 @@ The same example, but using async code:
     
     @graph.bind
     async def provide_engine() -> AsyncIterator[AsyncEngine]:
-        engine = create_async_engine("sqlite+aiosqlite://")
+        engine = create_async_engine("sqlite+aiosqlite:///mydb.db")
         try:
             yield engine
         finally:
@@ -145,7 +148,9 @@ The same example, but using async code:
     
     @graph.entrypoint
     async def main(conn: AsyncConnection) -> None:
-        print((await conn.execute(text("SELECT datetime('now');"))).one())
+        statement = text("SELECT name FROM sqlite_master;")
+        for [table_name] in await conn.execute(statement):
+            print(table_name)
     
     
     if __name__ == "__main__":
