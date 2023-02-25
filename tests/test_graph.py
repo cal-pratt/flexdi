@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing_extensions import Annotated, assert_type
 
 from flexdi import CycleError, FlexGraph
+from flexdi.errors import ImplicitBindingError
 
 
 @pytest.mark.asyncio
@@ -32,6 +33,9 @@ async def test_dependant_chained() -> None:
     When arguments are specified, follow the tree to construct them.
     """
 
+    graph = FlexGraph()
+
+    @graph.bind
     class Foo:
         pass
 
@@ -39,7 +43,7 @@ async def test_dependant_chained() -> None:
         def __init__(self, dep1: Foo) -> None:
             self.dep1 = dep1
 
-    async with FlexGraph() as graph:
+    async with graph:
         res = await graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
@@ -51,6 +55,9 @@ async def test_dependant_chained_dataclasses() -> None:
     Now lets try it with dataclasses.
     """
 
+    graph = FlexGraph()
+
+    @graph.bind
     @dataclass
     class Foo:
         pass
@@ -59,7 +66,7 @@ async def test_dependant_chained_dataclasses() -> None:
     class Bar:
         dep1: Foo
 
-    async with FlexGraph() as graph:
+    async with graph:
         res = await graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
@@ -71,13 +78,16 @@ async def test_dependant_chained_pydantic() -> None:
     Now lets try it with pydantic models used.
     """
 
+    graph = FlexGraph()
+
+    @graph.bind
     class Foo(BaseModel):
         pass
 
     class Bar(BaseModel):
         dep1: Foo
 
-    async with FlexGraph() as graph:
+    async with graph:
         res = await graph.resolve(Bar)
         assert isinstance(res, Bar)
         assert isinstance(res.dep1, Foo)
@@ -91,9 +101,13 @@ async def test_cycle_detection() -> None:
     object required.
     """
 
+    graph = FlexGraph()
+
+    @graph.bind
     class Foo:
         pass
 
+    @graph.bind
     class Bar:
         pass
 
@@ -106,11 +120,9 @@ async def test_cycle_detection() -> None:
     Foo.__init__ = foo_init  # type: ignore
     Bar.__init__ = bar_init  # type: ignore
 
-    async with FlexGraph() as graph:
-        with pytest.raises(CycleError):
-            await graph.resolve(Foo)
-        with pytest.raises(CycleError):
-            await graph.resolve(Bar)
+    with pytest.raises(CycleError):
+        async with graph:
+            pass
 
 
 @pytest.mark.asyncio
@@ -181,10 +193,14 @@ async def test_provider_lambda() -> None:
 
 @pytest.mark.asyncio
 async def test_provider_interface_map() -> None:
+    graph = FlexGraph()
+
+    @graph.bind
     @dataclass
     class Foo:
         pass
 
+    @graph.bind
     @dataclass
     class FooChild(Foo):
         pass
@@ -193,7 +209,6 @@ async def test_provider_interface_map() -> None:
     class Bar:
         dep1: Foo
 
-    graph = FlexGraph()
     graph.bind(FooChild, resolves=Foo)
 
     async with graph:
@@ -204,6 +219,9 @@ async def test_provider_interface_map() -> None:
 
 @pytest.mark.asyncio
 async def test_provider_lower_level() -> None:
+    graph = FlexGraph()
+
+    @graph.bind
     @dataclass
     class Foo:
         value: int
@@ -211,8 +229,6 @@ async def test_provider_lower_level() -> None:
     @dataclass
     class Bar:
         dep1: Foo
-
-    graph = FlexGraph()
 
     @graph.bind
     def value_provider() -> int:
@@ -510,6 +526,9 @@ async def test_all_providers() -> None:
 
 @pytest.mark.asyncio
 async def test_supports_all_func_invocations() -> None:
+    graph = FlexGraph()
+
+    @graph.bind
     class Foo:
         pass
 
@@ -525,7 +544,7 @@ async def test_supports_all_func_invocations() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    async with FlexGraph() as graph:
+    async with graph:
         res1 = await graph.resolve(func1)
         res2 = await graph.resolve(func2)
         res3 = await graph.resolve(func3)
@@ -603,6 +622,7 @@ async def test_bindings_out_of_order() -> None:
     class Bar(Foo):
         pass
 
+    @graph.bind
     @dataclass
     class Fizz:
         foo: Foo
@@ -624,6 +644,7 @@ async def test_bindings_out_of_order() -> None:
 def test_entrypoints() -> None:
     graph = FlexGraph()
 
+    @graph.bind
     class Foo:
         pass
 
@@ -694,3 +715,74 @@ async def test_one_instance_multiple_targets() -> None:
         assert isinstance(buzz.foo, Fizz)
         assert isinstance(buzz.bar, Fizz)
         assert id(buzz.foo) == id(buzz.bar)
+
+
+@pytest.mark.asyncio
+async def test_disallow_implicit_bindings_enter() -> None:
+    """
+    Bindings which are created with unresolvable values should cause the
+    application to raise an error on startup.
+    """
+
+    graph = FlexGraph()
+
+    @dataclass
+    class Foo:
+        pass
+
+    @graph.bind
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    with pytest.raises(ImplicitBindingError):
+        async with graph:
+            pass
+
+
+@pytest.mark.asyncio
+async def test_disallow_implicit_bindings_resolve() -> None:
+    """
+    Resolving callables which have unresolvable values should cause the
+    application to raise an error on resolving.
+    """
+
+    graph = FlexGraph()
+
+    @dataclass
+    class Foo:
+        pass
+
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    async with graph:
+        with pytest.raises(ImplicitBindingError):
+            await graph.resolve(Bar)
+
+
+@pytest.mark.asyncio
+async def test_allow_unbound_callable_with_explicit_bindings() -> None:
+    """
+    Ensure that resolving callables is still okay... they can be considered
+    explicit because we are directly passing them to resolve. If there are
+    any dependencies which it requires that are unbound, this should still
+    be considered an error.
+    """
+
+    graph = FlexGraph()
+
+    @graph.bind
+    @dataclass
+    class Foo:
+        pass
+
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    async with graph:
+        res = await graph.resolve(Bar)
+        assert isinstance(res, Bar)
+        assert isinstance(res.foo, Foo)
