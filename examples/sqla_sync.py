@@ -21,7 +21,9 @@ def provide_engine() -> Engine:
 
 # Generator responses can also be used. e.g.
 # - A function returning Iterator[T] binds to T
+# - A function returning Generator[T, U, V] binds to T
 # - A function returning AsyncIterator[T] binds to T
+# - A function returning AsyncGenerator[T, U] binds to T
 @graph.bind
 def provide_connection(engine: Engine) -> Iterator[Session]:
     with Session(engine) as session:

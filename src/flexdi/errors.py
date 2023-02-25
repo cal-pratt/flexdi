@@ -8,3 +8,7 @@ class CycleError(FlexError):
 
 class SetupError(FlexError):
     pass
+
+
+class UntypedError(FlexError):
+    pass

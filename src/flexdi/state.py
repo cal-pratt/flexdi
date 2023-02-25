@@ -95,7 +95,11 @@ class FlexState:
                 func=binding.func,
                 args={
                     name: self.dependant(
-                        self.binding(param.annotation, eager=binding.eager)
+                        self.binding(
+                            param.annotation,
+                            target=param.annotation,
+                            eager=binding.eager,
+                        )
                     )
                     for name, param in signature.parameters.items()
                 },
