@@ -2,9 +2,10 @@ from typing import Iterator
 
 import pytest
 from _pytest.capture import CaptureFixture
-from sqla_sync import graph, main
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session
+
+from .sqla_sync import graph, main
 
 
 # This simple fixture allows overriden bindings on the graph
