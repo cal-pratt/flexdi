@@ -22,6 +22,7 @@ Resources
    overview
    sync_example
    async_example
+   implicit_vs_explicit
    testing
    fastapi
    alternatives

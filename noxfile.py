@@ -101,12 +101,12 @@ def docs(session):
     if os.path.exists("docs/build"):
         shutil.rmtree("docs/build")
     session.run("sphinx-build", "-a", "docs/source", "docs/build")
-    path = os.path.abspath("docs/build/index.html")
-    webbrowser.open_new_tab(f"file://{path}")
 
     # regenerate the README.rst
     with open("README.rst", "w") as readme_file:
         readme_file.write(gen_readme())
+
+    print(f'file:///{os.path.abspath("docs/build/index.html")}')
 
 
 def gen_readme() -> str:

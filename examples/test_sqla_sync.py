@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from .sqla_sync import graph, main
 
 
-# This simple fixture allows overriden bindings on the graph
-# and have them removed after each test is completed.
-# This allows test-cases to easily bind different mocks per test.
+# This simple fixture allows overrides to bindings on the graph.
+# The overrides will be removed after each test case is completed.
+# Each test case can choose to bind different mocks to suit its needs.
 @pytest.fixture(autouse=True)
 def graph_override() -> Iterator[None]:
     with graph.override():
