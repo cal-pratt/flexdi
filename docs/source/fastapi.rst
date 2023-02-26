@@ -2,20 +2,20 @@ FastAPI Integration (Experimental)
 ==================================
 
 FastAPI has a great dependency system, but one of the key features it lacks is
-the ability to create singleton scoped dependencies. With ``flexdi`` you can 
-create singleton scoped dependencies using the ``FastAPIGraph`` class.
+the ability to create singleton scoped dependencies which are not bound to the
+globals of a module. With ``flexdi`` you can create ``eager`` or singleton scoped
+dependencies using the ``FastAPIGraph`` class.
 
 ``FastAPIGraph`` is an extension of the normal ``FlexGraph`` with the nessisary
 logic to hook itself into FastAPI's startup and shutdown logic. Upon getting a
-request, the ``FlexGraph`` will be chained, to allow creating request scoped
-dependencies like normal, however, it can inherit any ``eager`` scoped
-dependencies which are created at server startup time.
+request, the ``FlexGraph`` will be chained to allow creating dependencies that
+have the same lifetime rules as the request, but, it can inherit ``eager`` 
+scoped dependencies which are created at server startup time.
 
-To opt into using a ``FlexGraph`` proided dependency, you can define the default
-value of your argument to ``FlexDepends`` instead of the normal ``Depends`` that
-is provided by FastAPI. The argument to ``FlexDepends`` is the class which you
-want to be injected as the value, which will follow the same binding rules as a
-normal ``flexdi`` application.
+To use a ``FlexGraph`` proided dependency within a FastAPI dependency or route,
+you can define the default value of your argument as a ``FlexDepends`` instead of 
+the normal ``fastapi.Depends`` instance. The argument to ``FlexDepends`` is the 
+class which you want to be injected as the value.
 
 
 .. include:: ../../examples/fastapi_graph.py

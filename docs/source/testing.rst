@@ -1,11 +1,12 @@
 Testing
 -------
 
-Mocking out components during tests in ``flexdi`` application is quite easy.
-The ``FlexGraph`` allows users to override pre-defined dependencies with mock
-implementations in a way that can be isolated per test case.
+To mock dependencies in a ``flexdi`` application, the ``FlexGraph`` provides an
+override feature. Users can override dependency bindings with mocks in a way that
+is isolated per test case and is reverted when the test case completes.
 
-Here's how can combine the fixture resolution of ``pytest`` with ``flexdi``
+The following examples uses ``pytest`` fixtures to initialize the graph override
+and bind mock implementations to the ``FlexGraph``
 
 .. include:: ../../examples/test_sqla_sync.py
    :code: python
