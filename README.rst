@@ -194,3 +194,8 @@ My thoughts on some of the popular alternatives I have used in the past:
     names, then you need to bind them all individually as well. And
     sadly, this project has now been archived and is read-only.
 
+
+Want to make a contribution?
+----------------------------
+
+See `CONTRIBUTING.md <https://github.com/cal-pratt/flexdi/blob/main/CONTRIBUTING.md>`_
