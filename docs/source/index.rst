@@ -22,6 +22,8 @@ Resources
    overview
    sync_example
    async_example
+   resolution
+   entrypoints
    implicit_vs_explicit
    testing
    fastapi

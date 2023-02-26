@@ -38,8 +38,8 @@ As noted in the comment above the main method, the graph refused to
 resolve the main method because it was not explicitly bound to the graph.
 To overcome this challenge we need to bind it to the graph.
 
-.. include:: ../../examples/implicit_vs_explicit/main_explicit.py
-   :code: python
+.. literalinclude:: ../../examples/implicit_vs_explicit/main_explicit.py
+   :emphasize-lines: 11-12
 
 Great, the example works! But this seems kind of tedious to do if one has
 many dependencies that all need to be bound...
@@ -58,8 +58,8 @@ explicitly bound in the graph.
 
 The modification to our ``QueryService`` is simple:
 
-.. include:: ../../examples/implicit_vs_explicit/service_implicit.py
-   :code: python
+.. literalinclude:: ../../examples/implicit_vs_explicit/service_implicit.py
+   :emphasize-lines: 6
 
 Now we can write the main module as we had initially expected:
 

@@ -1,5 +1,5 @@
-Testing
--------
+Testing Setup
+-------------
 
 To mock dependencies in a ``flexdi`` application, the ``FlexGraph`` provides an
 override feature. Users can override dependency bindings with mocks in a way that
