@@ -143,4 +143,9 @@ The same example, but using async code:
 {readall_indent("examples/sqla_async.py")}
 
 {readall("docs/source/alternatives.rst")}
+
+Want to make a contribution?
+----------------------------
+
+See `CONTRIBUTING.md <https://github.com/cal-pratt/flexdi/blob/main/CONTRIBUTING.md>`_
 """

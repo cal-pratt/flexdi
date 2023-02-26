@@ -28,3 +28,8 @@ Resources
    testing
    fastapi
    alternatives
+
+Want to make a contribution?
+----------------------------
+
+See `CONTRIBUTING.md <https://github.com/cal-pratt/flexdi/blob/main/CONTRIBUTING.md>`_
