@@ -20,6 +20,17 @@ When rewriting the main module we might be tempted to write the following:
 .. include:: ../../examples/implicit_vs_explicit/main_failing.py
    :code: python
 
+This fails with:
+
+.. warning::
+
+   .. code-block::
+
+      flexdi.errors.ImplicitBindingError:
+         Requested a binding for <class 'service.QueryService'>
+         that was not explicitly marked for binding.
+
+
 Fixing the issue by adding explicit bindings
 --------------------------------------------
 
@@ -37,13 +48,13 @@ many dependencies that all need to be bound...
 Reducing boilerplate with ``@implicitbinding``
 ----------------------------------------------
 
-We can bind classes with ``@implicitbinding`` to avoid needing to wire up many 
+Classes marked with ``@implicitbinding`` avoid the need for explicit wiring 
 in the main module of your application. This is perfect for classes that have
 easily understandable dependencies.
 
 The ``@implicitbinding`` decorator marks a class with a special attribute that
-tells ``flexdi`` that the intent of this class is to be injected and that it is
-okay to bind it to the graph, even if it was not explicitly referenced.
+tells ``flexdi`` that it is okay to inject this class even if it was not 
+explicitly bound in the graph.
 
 The modification to our ``QueryService`` is simple:
 
