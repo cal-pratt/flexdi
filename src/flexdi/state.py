@@ -53,7 +53,7 @@ class FlexState:
             self.opened = False
 
     async def resolve(self, func: Any) -> Any:
-        return await self.instance(self.dependant(self.binding(func, target=func)))
+        return await self.instance(self.dependant(self.binding(func)))
 
     def binding(
         self,

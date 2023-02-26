@@ -1,5 +1,5 @@
-FastAPI Integration (Experimental)
-==================================
+FastAPI Integration
+===================
 
 FastAPI has a great dependency system, but one of the key features it lacks is
 the ability to create singleton scoped dependencies which are not bound to the
