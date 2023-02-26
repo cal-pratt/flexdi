@@ -98,6 +98,7 @@ def test_publish(session):
 @nox.session(python=PYTHON_VERSION, reuse_venv=True)
 def docs(session):
     session.install("Sphinx >= 6.1.3", "sphinx-rtd-theme >= 1.2.0")
+    session.install("-e", ".")
     if os.path.exists("docs/build"):
         shutil.rmtree("docs/build")
     session.run("sphinx-build", "-a", "docs/source", "docs/build")

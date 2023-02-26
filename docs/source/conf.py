@@ -38,3 +38,5 @@ html_theme_options = {
 
 # -- Options for EPUB output
 epub_show_urls = "footnote"
+
+autodoc_member_order = 'bysource'
