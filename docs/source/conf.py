@@ -1,4 +1,7 @@
 # Configuration file for the Sphinx documentation builder.
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../src'))
 
 # -- Project information
 
@@ -38,3 +41,5 @@ html_theme_options = {
 
 # -- Options for EPUB output
 epub_show_urls = "footnote"
+
+autodoc_member_order = 'bysource'

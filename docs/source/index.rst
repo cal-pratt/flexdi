@@ -27,6 +27,7 @@ Resources
    implicit_vs_explicit
    testing
    fastapi
+   api
    alternatives
 
 Want to make a contribution?
