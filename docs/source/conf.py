@@ -9,7 +9,7 @@ project = "flexdi"
 copyright = "2023, Cal Pratt"
 author = "Cal Pratt"
 
-version = "0.1.13"
+version = "0.1.14"
 
 # -- General configuration
 
