@@ -81,17 +81,30 @@ class FlexGraph:
         self._state = FlexState()
 
     @overload
-    def bind(self, func: Func, *, eager: bool = False, resolves: Any = None) -> Func:
+    def bind(
+        self,
+        func: Func,
+        *,
+        resolves: Any = None,
+        eager: bool = False,
+    ) -> Func:
         ...
 
     @overload
     def bind(
-        self, *, eager: bool = False, resolves: Any = None
+        self,
+        *,
+        eager: bool = False,
+        resolves: Any = None,
     ) -> Callable[[Func], Func]:
         ...
 
     def bind(
-        self, func: Optional[Func] = None, *, eager: bool = False, resolves: Any = None
+        self,
+        func: Optional[Func] = None,
+        *,
+        resolves: Any = None,
+        eager: bool = False,
     ) -> Union[Func, Callable[[Func], Func]]:
         """
         Bind a provider to a resolve a particular type.
@@ -131,12 +144,12 @@ class FlexGraph:
         :param func: The callable that provides the binding, defaults to None
         :type func: Callable[..., T], optional
 
+        :param resolves: The type or types that this provider binds to.
+            defaults to the return type annotation of the provided func
+        :type resolves: Any, optional
+
         :param eager: If the binding eager, defaults to False
         :type eager: bool
-
-        :param resolves: The type that this provider binds to. defaults to the
-            return type annotation of the provided func
-        :type resolves: Any, optional
 
         :return: Either a decorator or the unedited function supplied.
         """
@@ -145,7 +158,8 @@ class FlexGraph:
             if self._state.opened:
                 raise SetupError("FlexGraph opened. Cannot be bound.")
 
-            self._state.binding(_func, target=resolves, eager=eager, use_cached=False)
+            self._state.add_binding(_func, resolves)
+            self._state.add_policy(_func, eager=eager)
             return _func
 
         return wrapper(func) if func else wrapper
@@ -164,7 +178,8 @@ class FlexGraph:
         :param value: The instance for the binding.
         :type value: T
 
-        :param resolves: The type that this provider binds to. defaults to ``type(value)``
+        :param resolves: The type or types that this provider binds to.
+            defaults to ``type(value)``
         :type resolves: Any, optional
 
         :return: The unedited value supplied.
@@ -173,10 +188,8 @@ class FlexGraph:
         if self._state.opened:
             raise SetupError("FlexGraph opened. Cannot be bound.")
 
-        resolves = resolves or type(value)
-        self._state.binding(
-            lambda: value, target=resolves, eager=True, use_cached=False
-        )
+        self._state.add_binding(func := lambda: value, resolves or type(value))
+        self._state.add_policy(func, eager=True)
         return value
 
     async def __aenter__(self) -> "FlexGraph":
@@ -199,7 +212,7 @@ class FlexGraph:
         """
 
         # Bind the current instance of the FlexGraph to any resolution.
-        self.bind_instance(self)
+        self.bind_instance(self, resolves=FlexGraph)
         await self._state.open()
         return self
 
@@ -259,8 +272,7 @@ class FlexGraph:
         """
 
         if not self._state.opened:
-            raise SetupError("FlexGraph not opened. Cannot be resolved.")
-
+            raise SetupError("Graph was not opened")
         return cast(T, await self._state.resolve(func))
 
     @overload
@@ -292,11 +304,8 @@ class FlexGraph:
                 _self._func = _func
 
             async def aio(_self) -> T:
-                if self._state.opened:
+                async with self:
                     return await self.resolve(_self._func)
-                else:
-                    async with self:
-                        return await self.resolve(_self._func)
 
             def __call__(_self) -> T:
                 loop = asyncio.get_event_loop()

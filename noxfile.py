@@ -74,7 +74,7 @@ def isort(session):
 def mypy(session):
     session.install(*DEV_DEPS)
     session.install("-e", ".")
-    session.run("mypy", "--strict", "src/", "tests/")
+    session.run("mypy", "--strict", "--python-version", "3.8", "src/", "tests/")
 
 
 @nox.session(python=PYTHON_VERSION)
