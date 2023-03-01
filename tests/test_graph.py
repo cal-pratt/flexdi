@@ -22,7 +22,8 @@ async def test_dependant_simple() -> None:
     class Foo:
         pass
 
-    async with FlexGraph() as graph:
+    graph = FlexGraph()
+    async with graph:
         res = await graph.resolve(Foo)
         assert isinstance(res, Foo)
 
@@ -96,29 +97,19 @@ async def test_dependant_chained_pydantic() -> None:
 @pytest.mark.asyncio
 async def test_cycle_detection() -> None:
     """
-    This is a bit of a contrived case, but if there are cycles present in the
-    dependency tree, we should fail as there would be no way to construct the
-    object required.
+    If there are cycles present in the dependency tree, we should fail as there
+    would be no way to construct the objects required.
     """
 
     graph = FlexGraph()
 
     @graph.bind
-    class Foo:
-        pass
+    def provide_foo(bar: int) -> str:
+        return ""
 
     @graph.bind
-    class Bar:
-        pass
-
-    def foo_init(self: Foo, dep1: Bar) -> None:
-        self.dep1 = dep1  # type: ignore
-
-    def bar_init(self: Bar, dep1: Foo) -> None:
-        self.dep1 = dep1  # type: ignore
-
-    Foo.__init__ = foo_init  # type: ignore
-    Bar.__init__ = bar_init  # type: ignore
+    def provide_bar(foo: str) -> int:
+        return 0
 
     with pytest.raises(CycleError):
         async with graph:
@@ -356,19 +347,19 @@ async def test_singleton() -> None:
         return "2"
 
     async with graph:
-        async with graph.chain() as sub_injector:
-            await sub_injector.resolve(Foo)
-        async with graph.chain() as sub_injector:
-            await sub_injector.resolve(Foo)
+        async with graph.chain() as chain:
+            await chain.resolve(Foo)
+        async with graph.chain() as chain:
+            await chain.resolve(Foo)
 
     assert called_value1_provider == 1
     assert called_value2_provider == 2
 
     async with graph:
-        async with graph.chain() as sub_injector:
-            await sub_injector.resolve(Foo)
-        async with graph.chain() as sub_injector:
-            await sub_injector.resolve(Foo)
+        async with graph.chain() as chain:
+            await chain.resolve(Foo)
+        async with graph.chain() as chain:
+            await chain.resolve(Foo)
 
     assert called_value1_provider == 2
     assert called_value2_provider == 4
@@ -390,15 +381,15 @@ async def test_sync_dep_provider() -> None:
         return 1
 
     async with graph:
-        provider_events = []
+        assert provider_events == []
 
         res = await graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
-        provider_events = ["entered"]
+        assert provider_events == ["entered"]
 
-    provider_events = ["entered"]
+    assert provider_events == ["entered"]
 
 
 @pytest.mark.asyncio
@@ -417,15 +408,15 @@ async def test_async_dep_provider() -> None:
         return 1
 
     async with graph:
-        provider_events = []
+        assert provider_events == []
 
         res = await graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
-        provider_events = ["entered"]
+        assert provider_events == ["entered"]
 
-    provider_events = ["entered"]
+    assert provider_events == ["entered"]
 
 
 @pytest.mark.asyncio
@@ -447,15 +438,15 @@ async def test_sync_gen_provider() -> None:
             provider_events.append("exited")
 
     async with graph:
-        provider_events = []
+        assert provider_events == []
 
         res = await graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
-        provider_events = ["entered"]
+        assert provider_events == ["entered"]
 
-    provider_events = ["entered", "exited"]
+    assert provider_events == ["entered", "exited"]
 
 
 @pytest.mark.asyncio
@@ -477,15 +468,15 @@ async def test_async_gen_provider() -> None:
             provider_events.append("exited")
 
     async with graph:
-        provider_events = []
+        assert provider_events == []
 
         res = await graph.resolve(Foo)
         assert isinstance(res, Foo)
         assert res.value == 1
 
-        provider_events = ["entered"]
+        assert provider_events == ["entered"]
 
-    provider_events = ["entered", "exited"]
+    assert provider_events == ["entered", "exited"]
 
 
 @pytest.mark.asyncio
@@ -707,14 +698,23 @@ async def test_one_instance_multiple_targets() -> None:
         foo: Foo
         bar: Bar
 
-    graph.bind(Fizz, resolves=Foo)
-    graph.bind(Fizz, resolves=Bar)
+    graph.bind(Fizz, resolves=[Foo, Bar])
 
     async with graph:
         buzz = await graph.resolve(Buzz)
         assert isinstance(buzz.foo, Fizz)
         assert isinstance(buzz.bar, Fizz)
         assert id(buzz.foo) == id(buzz.bar)
+
+    async with graph:
+        buzz2 = await graph.resolve(Buzz)
+        assert isinstance(buzz2.foo, Fizz)
+        assert isinstance(buzz2.bar, Fizz)
+        assert id(buzz2.foo) == id(buzz2.bar)
+
+    assert id(buzz) != id(buzz2)
+    assert id(buzz.foo) != id(buzz2.foo)
+    assert id(buzz.bar) != id(buzz2.bar)
 
 
 @pytest.mark.asyncio

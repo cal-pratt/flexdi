@@ -42,13 +42,13 @@ def test_fastapi_scopes_sync() -> None:
         assert events == [
             "singleton-start",
         ]
-        client.get("/")
+        assert client.get("/").status_code == 200
         assert events == [
             "singleton-start",
             "request-start",
             "request-end",
         ]
-        client.get("/")
+        assert client.get("/").status_code == 200
         assert events == [
             "singleton-start",
             "request-start",
