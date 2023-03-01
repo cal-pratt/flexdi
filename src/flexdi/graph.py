@@ -5,13 +5,10 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    Coroutine,
     Generic,
     Iterator,
     Optional,
-    Protocol,
     Type,
-    TypeVar,
     Union,
     cast,
     overload,
@@ -19,33 +16,7 @@ from typing import (
 
 from .errors import SetupError
 from .state import FlexState
-
-T = TypeVar("T")
-T_cov = TypeVar("T_cov", covariant=True)
-Func = TypeVar("Func", bound=Callable[..., Any])
-AsyncEntry = Callable[..., Coroutine[Any, Any, T]]
-Entry = Callable[..., T]
-
-
-class Entrypoint(Protocol[T_cov]):
-    def __call__(self) -> T_cov:
-        raise NotImplementedError
-
-    async def aio(self) -> T_cov:
-        raise NotImplementedError
-
-
-class EntrypointDecorator(Protocol):
-    @overload
-    def __call__(self, func: AsyncEntry[T]) -> Entrypoint[T]:
-        ...
-
-    @overload
-    def __call__(self, func: Entry[T]) -> Entrypoint[T]:
-        ...
-
-    def __call__(self, func: Any) -> Any:
-        ...
+from .types import AsyncEntry, Entry, Entrypoint, EntrypointDecorator, FuncT, T
 
 
 class FlexGraph:
@@ -83,11 +54,11 @@ class FlexGraph:
     @overload
     def bind(
         self,
-        func: Func,
+        func: FuncT,
         *,
         resolves: Any = None,
         eager: bool = False,
-    ) -> Func:
+    ) -> FuncT:
         ...
 
     @overload
@@ -96,16 +67,16 @@ class FlexGraph:
         *,
         eager: bool = False,
         resolves: Any = None,
-    ) -> Callable[[Func], Func]:
+    ) -> Callable[[FuncT], FuncT]:
         ...
 
     def bind(
         self,
-        func: Optional[Func] = None,
+        func: Optional[FuncT] = None,
         *,
         resolves: Any = None,
         eager: bool = False,
-    ) -> Union[Func, Callable[[Func], Func]]:
+    ) -> Union[FuncT, Callable[[FuncT], FuncT]]:
         """
         Bind a provider to a resolve a particular type.
 
@@ -154,7 +125,7 @@ class FlexGraph:
         :return: Either a decorator or the unedited function supplied.
         """
 
-        def wrapper(_func: Func) -> Func:
+        def wrapper(_func: FuncT) -> FuncT:
             if self._state.opened:
                 raise SetupError("FlexGraph opened. Cannot be bound.")
 

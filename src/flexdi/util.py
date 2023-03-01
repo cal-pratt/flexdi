@@ -2,9 +2,9 @@ import collections.abc
 import inspect
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from functools import lru_cache
-from typing import Any, Sequence, Tuple, Type, get_args, get_origin
+from typing import Any, Dict, Sequence, Tuple, Type, get_args, get_origin
 
-from flexdi.errors import UntypedError
+from .errors import UntypedError
 
 
 @lru_cache(maxsize=None)
@@ -66,3 +66,13 @@ async def invoke_callable(stack: AsyncExitStack, func: Any, args: Any) -> Any:
 
     else:
         return func(**args)
+
+
+def parse_signature(func: Any) -> Dict[str, Type[Any]]:
+    arguments: Dict[str, Type[Any]] = {}
+    for name, param in inspect.signature(func).parameters.items():
+        if not param.annotation:
+            raise Exception(f"No annotation on argument {func=} {name=}")
+        arguments[name] = param.annotation
+
+    return arguments
