@@ -8,7 +8,7 @@ from .util import invoke_callable
 
 
 class FlexStore:
-    def __init__(self):
+    def __init__(self) -> None:
         self._stack = AsyncExitStack()
         self._instances: MutableMapping[Func, Instance] = {}
 
