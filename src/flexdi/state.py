@@ -1,61 +1,26 @@
-import inspect
 from collections import ChainMap
-from contextlib import AsyncExitStack
-from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Set,
-    Type,
-    Union,
-)
+from typing import Any, Dict, Iterable, List, MutableMapping, Optional, Set, Union
 
 from .errors import CycleError, ImplicitBindingError
 from .implicit import is_implicitbinding
-from .util import determine_return_type, invoke_callable
-
-# Note, in 3.10+ we can start using TypeAlias
-Clazz = Type[Any]
-Func = Union[Clazz, Callable[..., Any]]
-Instance = Any
-
-
-@dataclass
-class Policy:
-    eager: bool
-
-
-DEFAULT_POLICY = Policy(eager=False)
-
-
-def parse_signature(func: Func) -> Dict[str, Clazz]:
-    arguments: Dict[str, Clazz] = {}
-    for name, param in inspect.signature(func).parameters.items():
-        if not param.annotation:
-            raise Exception(f"No annotation on argument {func=} {name=}")
-        arguments[name] = param.annotation
-
-    return arguments
+from .policy import DEFAULT_POLICY, FlexPolicy
+from .store import FlexStore
+from .types import Func
+from .util import determine_return_type, parse_signature
 
 
 class FlexState:
     def __init__(self) -> None:
         self.opened = False
-        self._stack: AsyncExitStack = AsyncExitStack()
+        self._store = FlexStore()
         self._bindings: MutableMapping[Func, Func] = {}
-        self._policies: MutableMapping[Func, Policy] = {}
-        self._instances: MutableMapping[Func, Instance] = {}
+        self._policies: MutableMapping[Func, FlexPolicy] = {}
 
     def chain(self) -> "FlexState":
         state = FlexState()
+        state._store = self._store.chain()
         state._bindings = ChainMap({}, self._bindings)
         state._policies = ChainMap({}, self._policies)
-        state._instances = ChainMap({}, self._instances)
         return state
 
     def add_binding(
@@ -76,9 +41,9 @@ class FlexState:
         func: Func,
         eager: bool,
     ) -> None:
-        self._policies[func] = Policy(eager=eager)
+        self._policies[func] = FlexPolicy(eager=eager)
 
-    def get_policy(self, func: Func) -> Policy:
+    def get_policy(self, func: Func) -> FlexPolicy:
         return self._policies.get(func, DEFAULT_POLICY)
 
     def reduce_bindings(self) -> None:
@@ -171,9 +136,8 @@ class FlexState:
         return self
 
     async def close(self) -> None:
-        self._instances.clear()
         try:
-            await self._stack.aclose()
+            await self._store.close()
         finally:
             self.opened = False
 
@@ -185,14 +149,13 @@ class FlexState:
         return await self._resolve(self._bindings[func])
 
     async def _resolve(self, func: Func) -> Any:
-        if func in self._instances:
-            return self._instances[func]
+        async with self._store.lock(func):
+            if func not in self._store:
+                args: Dict[str, Any] = {}
+                for name, annotation in parse_signature(func).items():
+                    alias = self._bindings.get(annotation, annotation)
+                    args[name] = await self._resolve(alias)
 
-        args: Dict[str, Any] = {}
-        for name, annotation in parse_signature(func).items():
-            alias = self._bindings.get(annotation, annotation)
-            args[name] = await self._resolve(alias)
+                await self._store.create(func, args)
 
-        instance = await invoke_callable(stack=self._stack, func=func, args=args)
-        self._instances[func] = instance
-        return instance
+        return self._store[func]
