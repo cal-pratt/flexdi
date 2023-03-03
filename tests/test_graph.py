@@ -8,8 +8,8 @@ from pydantic import BaseModel
 # Import of assert_type not available from typing until 3.11
 from typing_extensions import Annotated, assert_type
 
-from flexdi import CycleError, FlexGraph, implicitbinding
-from flexdi.errors import ImplicitBindingError
+from flexdi import FlexGraph, implicitbinding
+from flexdi.errors import CycleError, ImplicitBindingError
 
 
 @pytest.mark.asyncio
@@ -23,9 +23,8 @@ async def test_dependant_simple() -> None:
         pass
 
     graph = FlexGraph()
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
 
 
 @pytest.mark.asyncio
@@ -44,10 +43,9 @@ async def test_dependant_chained() -> None:
         def __init__(self, dep1: Foo) -> None:
             self.dep1 = dep1
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
 
 
 @pytest.mark.asyncio
@@ -67,10 +65,9 @@ async def test_dependant_chained_dataclasses() -> None:
     class Bar:
         dep1: Foo
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
 
 
 @pytest.mark.asyncio
@@ -88,10 +85,9 @@ async def test_dependant_chained_pydantic() -> None:
     class Bar(BaseModel):
         dep1: Foo
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
 
 
 @pytest.mark.asyncio
@@ -132,11 +128,10 @@ async def test_provider() -> None:
     def foo_provider() -> Foo:
         return Foo(2)
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
-        assert res.dep1.value == 2
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
+    assert res.dep1.value == 2
 
 
 @pytest.mark.asyncio
@@ -155,11 +150,10 @@ async def test_provider_no_decorator() -> None:
     graph = FlexGraph()
     graph.bind(foo_provider)
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
-        assert res.dep1.value == 2
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
+    assert res.dep1.value == 2
 
 
 @pytest.mark.asyncio
@@ -175,11 +169,10 @@ async def test_provider_lambda() -> None:
     graph = FlexGraph()
     graph.bind(lambda: Foo(2), resolves=Foo)
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
-        assert res.dep1.value == 2
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
+    assert res.dep1.value == 2
 
 
 @pytest.mark.asyncio
@@ -202,10 +195,9 @@ async def test_provider_interface_map() -> None:
 
     graph.bind(FooChild, resolves=Foo)
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, FooChild)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, FooChild)
 
 
 @pytest.mark.asyncio
@@ -225,11 +217,10 @@ async def test_provider_lower_level() -> None:
     def value_provider() -> int:
         return 2
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.dep1, Foo)
-        assert res.dep1.value == 2
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.dep1, Foo)
+    assert res.dep1.value == 2
 
 
 @pytest.mark.asyncio
@@ -244,10 +235,9 @@ async def test_provider_clazz_mapping() -> None:
     def value_provider() -> Any:
         return 3
 
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value == 3
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value == 3
 
 
 @pytest.mark.asyncio
@@ -267,11 +257,10 @@ async def test_provider_annotated() -> None:
     def value2_provider() -> Annotated[int, "value2"]:
         return 456
 
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value1 == 123
-        assert res.value2 == 456
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value1 == 123
+    assert res.value2 == 456
 
 
 @pytest.mark.asyncio
@@ -291,11 +280,10 @@ async def test_provider_annotated_mapping() -> None:
     def value2_provider() -> int:
         return 456
 
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value1 == 123
-        assert res.value2 == 456
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value1 == 123
+    assert res.value2 == 456
 
 
 @pytest.mark.asyncio
@@ -315,11 +303,10 @@ async def test_provider_annotated_chained() -> None:
     def value2_provider(value1: Annotated[int, "value1"]) -> int:
         return value1 + 111
 
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value1 == 123
-        assert res.value2 == 234
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value1 == 123
+    assert res.value2 == 234
 
 
 @pytest.mark.asyncio
@@ -334,7 +321,7 @@ async def test_singleton() -> None:
     called_value1_provider = 0
     called_value2_provider = 0
 
-    @graph.bind(eager=True)
+    @graph.bind(scope="application", eager=True)
     def value1_provider() -> int:
         nonlocal called_value1_provider
         called_value1_provider += 1
@@ -346,20 +333,16 @@ async def test_singleton() -> None:
         called_value2_provider += 1
         return "2"
 
-    async with graph:
-        async with graph.chain() as chain:
-            await chain.resolve(Foo)
-        async with graph.chain() as chain:
-            await chain.resolve(Foo)
+    async with graph.application_scope() as app_scope:
+        await app_scope.resolve(Foo)
+        await app_scope.resolve(Foo)
 
     assert called_value1_provider == 1
     assert called_value2_provider == 2
 
-    async with graph:
-        async with graph.chain() as chain:
-            await chain.resolve(Foo)
-        async with graph.chain() as chain:
-            await chain.resolve(Foo)
+    async with graph.application_scope() as app_scope:
+        await app_scope.resolve(Foo)
+        await app_scope.resolve(Foo)
 
     assert called_value1_provider == 2
     assert called_value2_provider == 4
@@ -380,14 +363,11 @@ async def test_sync_dep_provider() -> None:
         provider_events.append("entered")
         return 1
 
-    async with graph:
-        assert provider_events == []
+    assert provider_events == []
 
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value == 1
-
-        assert provider_events == ["entered"]
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value == 1
 
     assert provider_events == ["entered"]
 
@@ -407,14 +387,9 @@ async def test_async_dep_provider() -> None:
         provider_events.append("entered")
         return 1
 
-    async with graph:
-        assert provider_events == []
-
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value == 1
-
-        assert provider_events == ["entered"]
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.value == 1
 
     assert provider_events == ["entered"]
 
@@ -437,14 +412,15 @@ async def test_sync_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    async with graph:
-        assert provider_events == []
+    async with graph.application_scope() as app_scope:
+        async with app_scope.request_scope() as request_scope:
+            assert provider_events == []
 
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value == 1
+            res = await request_scope.resolve(Foo)
+            assert isinstance(res, Foo)
+            assert res.value == 1
 
-        assert provider_events == ["entered"]
+            assert provider_events == ["entered"]
 
     assert provider_events == ["entered", "exited"]
 
@@ -467,14 +443,15 @@ async def test_async_gen_provider() -> None:
         finally:
             provider_events.append("exited")
 
-    async with graph:
-        assert provider_events == []
+    async with graph.application_scope() as app_scope:
+        async with app_scope.request_scope() as request_scope:
+            assert provider_events == []
 
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.value == 1
+            res = await request_scope.resolve(Foo)
+            assert isinstance(res, Foo)
+            assert res.value == 1
 
-        assert provider_events == ["entered"]
+            assert provider_events == ["entered"]
 
     assert provider_events == ["entered", "exited"]
 
@@ -506,13 +483,12 @@ async def test_all_providers() -> None:
     async def value4() -> AsyncIterator[int]:
         yield 4
 
-    async with graph:
-        res = await graph.resolve(Foo)
-        assert isinstance(res, Foo)
-        assert res.val1 == 1
-        assert res.val2 == 2
-        assert res.val3 == 3
-        assert res.val4 == 4
+    res = await graph.resolve(Foo)
+    assert isinstance(res, Foo)
+    assert res.val1 == 1
+    assert res.val2 == 2
+    assert res.val3 == 3
+    assert res.val4 == 4
 
 
 @pytest.mark.asyncio
@@ -535,19 +511,18 @@ async def test_supports_all_func_invocations() -> None:
     async def func4(foo: Foo) -> AsyncIterator[Foo]:
         yield foo
 
-    async with graph:
-        res1 = await graph.resolve(func1)
-        res2 = await graph.resolve(func2)
-        res3 = await graph.resolve(func3)
-        res4 = await graph.resolve(func4)
-        assert_type(res1, Foo)
-        assert_type(res2, Foo)
-        assert_type(res3, Foo)
-        assert_type(res4, Foo)
-        assert isinstance(res1, Foo)
-        assert isinstance(res2, Foo)
-        assert isinstance(res3, Foo)
-        assert isinstance(res4, Foo)
+    res1 = await graph.resolve(func1)
+    res2 = await graph.resolve(func2)
+    res3 = await graph.resolve(func3)
+    res4 = await graph.resolve(func4)
+    assert_type(res1, Foo)
+    assert_type(res2, Foo)
+    assert_type(res3, Foo)
+    assert_type(res4, Foo)
+    assert isinstance(res1, Foo)
+    assert isinstance(res2, Foo)
+    assert isinstance(res3, Foo)
+    assert isinstance(res4, Foo)
 
 
 @pytest.mark.asyncio
@@ -583,8 +558,7 @@ async def test_gen_shutdown_order_loop() -> None:
     async def func3(bar: Bar) -> None:
         events.append(3)
 
-    async with graph:
-        await graph.resolve(func3)
+    await graph.resolve(func3)
 
     assert events == [1, 2, 3, 4, 5]
 
@@ -625,11 +599,10 @@ async def test_bindings_out_of_order() -> None:
     graph.bind(Buzz)
     graph.bind(Bar, resolves=Foo)
 
-    async with graph:
-        buzz = await graph.resolve(Buzz)
-        assert isinstance(buzz, Buzz)
-        assert isinstance(buzz.fizz, Fizz)
-        assert isinstance(buzz.fizz.foo, Bar)
+    buzz = await graph.resolve(Buzz)
+    assert isinstance(buzz, Buzz)
+    assert isinstance(buzz.fizz, Fizz)
+    assert isinstance(buzz.fizz.foo, Bar)
 
 
 def test_entrypoints() -> None:
@@ -700,17 +673,15 @@ async def test_one_instance_multiple_targets() -> None:
 
     graph.bind(Fizz, resolves=[Foo, Bar])
 
-    async with graph:
-        buzz = await graph.resolve(Buzz)
-        assert isinstance(buzz.foo, Fizz)
-        assert isinstance(buzz.bar, Fizz)
-        assert id(buzz.foo) == id(buzz.bar)
+    buzz = await graph.resolve(Buzz)
+    assert isinstance(buzz.foo, Fizz)
+    assert isinstance(buzz.bar, Fizz)
+    assert id(buzz.foo) == id(buzz.bar)
 
-    async with graph:
-        buzz2 = await graph.resolve(Buzz)
-        assert isinstance(buzz2.foo, Fizz)
-        assert isinstance(buzz2.bar, Fizz)
-        assert id(buzz2.foo) == id(buzz2.bar)
+    buzz2 = await graph.resolve(Buzz)
+    assert isinstance(buzz2.foo, Fizz)
+    assert isinstance(buzz2.bar, Fizz)
+    assert id(buzz2.foo) == id(buzz2.bar)
 
     assert id(buzz) != id(buzz2)
     assert id(buzz.foo) != id(buzz2.foo)
@@ -757,9 +728,8 @@ async def test_disallow_implicit_bindings_resolve() -> None:
     class Bar:
         foo: Foo
 
-    async with graph:
-        with pytest.raises(ImplicitBindingError):
-            await graph.resolve(Bar)
+    with pytest.raises(ImplicitBindingError):
+        await graph.resolve(Bar)
 
 
 @pytest.mark.asyncio
@@ -782,10 +752,9 @@ async def test_allow_unbound_callable_with_explicit_bindings() -> None:
     class Bar:
         foo: Foo
 
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.foo, Foo)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.foo, Foo)
 
 
 @pytest.mark.asyncio
@@ -807,10 +776,9 @@ async def test_marked_implicitbinding() -> None:
         foo: Foo
 
     graph = FlexGraph()
-    async with graph:
-        res = await graph.resolve(Bar)
-        assert isinstance(res, Bar)
-        assert isinstance(res.foo, Foo)
+    res = await graph.resolve(Bar)
+    assert isinstance(res, Bar)
+    assert isinstance(res.foo, Foo)
 
 
 @pytest.mark.asyncio
@@ -836,9 +804,8 @@ async def test_marked_implicitbinding_still_invalid() -> None:
         bar: Bar
 
     graph = FlexGraph()
-    async with graph:
-        with pytest.raises(ImplicitBindingError):
-            await graph.resolve(Fizz)
+    with pytest.raises(ImplicitBindingError):
+        await graph.resolve(Fizz)
 
 
 @pytest.mark.asyncio
@@ -867,8 +834,7 @@ async def test_marked_implicitbinding_with_explicit_deps() -> None:
     # Explicitly bind Foo.
     graph.bind(Foo)
 
-    async with graph:
-        res = await graph.resolve(Fizz)
-        assert isinstance(res, Fizz)
-        assert isinstance(res.bar, Bar)
-        assert isinstance(res.bar.foo, Foo)
+    res = await graph.resolve(Fizz)
+    assert isinstance(res, Fizz)
+    assert isinstance(res.bar, Bar)
+    assert isinstance(res.bar.foo, Foo)

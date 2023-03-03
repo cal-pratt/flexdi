@@ -1,5 +1,5 @@
-Resolving Objects
-=================
+Scopes
+======
 
 For these examples, we'll start by making some basic classes that
 we will bind to the graph in various ways.
@@ -15,104 +15,127 @@ construct them.
    :start-after: [Provider Definitions: Start]
    :end-before: [Provider Definitions: End]
 
-Simple Resolution
------------------
-
-If we want to use the graph directly without the entrypoint directive,
-then we can use the ``FlexGraph`` as an async context manager. When opened,
-the graph supports invoking any callable which has dependencies registered
-by the graph.
-
+We can use the ``FlexGraph`` directly without the entrypoint directive.
+The graph supports invoking any callable which has dependencies registered
+by the graph. When the graph is called directly, it does not persist any 
+objects between invocations.
 
 .. literalinclude:: ../../examples/resolution.py
-   :start-after: [example1: Start]
-   :end-before: [example1: End]
+   :start-after: [multiple_resolves: Start]
+   :end-before: [multiple_resolves: End]
 
 .. code-block:: text
-   
+
+   Example Start
    Starting Foo
    Ending Foo
+   Starting Foo
+   Ending Foo
+   Foo1 is Foo2: False
+   Example End
 
+We can see that ``create_foo`` is called twice, and that foo is shut down
+as soon as we get the result back. If we want to re-use results throughout
+multiple calls, we need to use scopes!
 
-Graph Reuse
------------
+Types of Scopes
+---------------
 
-The graph will attempt to only make one instance per binding requested.
-For a single run of the graph, callables and classes will be re-used
-when requested to avoid creating duplicate objects.
+When setting bindings, there an option to set the scope.
+A dependency can either be ``application`` or ``request`` scoped, and
+by default, dependencies are set to ``request`` scoped. 
 
-This is to facilitate creating dependencies on things like database 
-connections or objects with expensive startup, that you would really
-only want one of per application.
-
+When resolving objects with the graph, both scopes will always exist.
+If not manually created, missing scopes are constructed for you.
+For example, the following:
 
 .. literalinclude:: ../../examples/resolution.py
-   :start-after: [example2: Start]
-   :end-before: [example2: End]
+   :start-after: [scope_equivalency_simple: Start]
+   :end-before: [scope_equivalency_simple: End]
+
+Is equivalent to:
+
+.. literalinclude:: ../../examples/resolution.py
+   :start-after: [scope_equivalency_verbose: Start]
+   :end-before: [scope_equivalency_verbose: End]
+
+Request Scope
+-------------
+
+In our previous example, if we want ``create_foo`` to be called only once,
+then we could do the following:
+
+.. literalinclude:: ../../examples/resolution.py
+   :start-after: [request_scoped_resolve: Start]
+   :end-before: [request_scoped_resolve: End]
 
 .. code-block:: text
 
+   Before App Scope
+   In App Scope
+   Before Req Scope
+   In Req Scope
    Starting Foo
    Foo1 is Foo2: True
    Ending Foo
+   After Req Scope
+   After App Scope
 
-We can see that ``create_foo`` is only called once, and that foo is
-not closed until the ``async with`` statement completes, as it prints
-after the line ``Foo1 is Foo2: True`` which was executed in the with block.
+Because we re-used the request scope for multiple calls, we re-used the instance. 
+You'll also notice that the shutdown of the resource happens only after we close the
+request scope.
 
-Eager Bindings
---------------
+Application Scope
+-----------------
 
-When setting bindings explicitly, there an option to making the binding
-``eager``. A dependency set as eager will be constructed as soon as the
-graph is opened. The default value for eager is set to ``False``.
-
-*This concept will become more important when we start looking at graph chaining*.
+We could also choose to make ``create_foo`` set as ``application`` scoped:
 
 .. literalinclude:: ../../examples/resolution.py
-   :start-after: [example3: Start]
-   :end-before: [example3: End]
+   :start-after: [application_scoped_resolve: Start]
+   :end-before: [application_scoped_resolve: End]
 
 .. code-block:: text
 
+   Before App Scope
+   In App Scope
    Starting Foo
-   Inside the with block
+   Foo1 is Foo2: True
    Ending Foo
+   After App Scope
 
-In this example, ``create_foo`` was set as eager, but ``create_bar`` was not.
-This means that we will only prepopulate the graph instances with ``Foo``,
-and wait until ``Bar`` is requested for the first time before constructing that.
+Similar to last time, because the application scope was re-used, we re-used the instance. 
+However, this time the shutdown of the resource happens only after we close the application 
+scope.
 
+Eager Dependencies
+------------------
 
-Graph Chaining
---------------
+By default, dependencies are created lazily when requested for the first time.
+If you want a value to be created as soon as the scope is opened, then you can
+set the dependency as eager.
 
-Graph chaining is the way that ``flexdi`` supports creating scopes for object
-resolution within applications. If a graph has been opened it is allowed to
-be chained.
+The following example illustrates how eager dependencies interact with the
+different scopes:
 
-When a graph is chained, a new graph will be created which inherits a copy of all
-of the graph state found in the parent graph. Any objects created by the parent
-graph will persist in the child, but these resources will not be closed until the 
-parent exits.
 
 .. literalinclude:: ../../examples/resolution.py
-   :start-after: [example4: Start]
-   :end-before: [example4: End]
+   :start-after: [eager_dependencies: Start]
+   :end-before: [eager_dependencies: End]
 
 .. code-block:: text
 
+   Before App Scope
    Starting Foo
-   Parent Block
-   Child Block
+   In App Scope
+   Before Req Scope
    Starting Bar
+   In Req Scope
    Ending Bar
-   Child Block
-   Starting Bar
-   Ending Bar
+   After Req Scope
    Ending Foo
+   After App Scope
 
-Using this pattern it is possible to create scopes for a long running application
-that has different lifetime rules for certain dependencies. When a new request is
-made to the application, a new graph may be constructed by chaining the main
-application graph and using it to fulfil the request.
+Even though we didn't specifically call ``create_foo`` or ``create_bar``,
+they we opened when entering the scope they were associated with. And we
+can also notice that they are closed only after their associated scope has
+also been closed.

@@ -13,11 +13,11 @@ app = FastAPI()
 graph = FastAPIGraph(app)
 
 
-# Setting this dependency as eager will mean that it gets created once when
-# the server is started, and will be re-used for every request.
-# Anything that is eager loaded MUST be thread-safe if you are going to use
+# Setting this dependency as application scopes will mean that it gets created
+# once during the lifetime of the server, and will be re-used for every request.
+# Anything that is application scoped MUST be thread-safe if you are going to use
 # it from non asyncio endpoints.
-@graph.bind(eager=True)
+@graph.bind(scope="application", eager=True)
 async def provide_engine() -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine("sqlite+aiosqlite:///mydb.db")
     try:
@@ -26,8 +26,8 @@ async def provide_engine() -> AsyncIterator[AsyncEngine]:
         await engine.dispose()
 
 
-# Here the connection dependency is not set to eager, so it will only be created
-# when actually requested, and will be created uniquely for each request we get.
+# Here the connection dependency is not set to application scoped.
+# It will be created uniquely for each request we get.
 @graph.bind
 async def provide_connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
     async with engine.begin() as conn:

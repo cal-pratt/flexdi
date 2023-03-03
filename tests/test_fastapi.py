@@ -18,7 +18,7 @@ def test_fastapi_scopes_sync() -> None:
 
     events = []
 
-    @graph.bind(eager=True)
+    @graph.bind(scope="application", eager=True)
     def singleton_dependency() -> Iterator[SingletonDependency]:
         events.append("singleton-start")
         yield SingletonDependency()
@@ -78,7 +78,7 @@ def test_fastapi_scopes_async() -> None:
 
     events = []
 
-    @graph.bind(eager=True)
+    @graph.bind(scope="application")
     async def singleton_dependency() -> AsyncIterator[SingletonDependency]:
         events.append("singleton-start")
         yield SingletonDependency()
@@ -99,9 +99,7 @@ def test_fastapi_scopes_async() -> None:
 
     assert events == []
     with TestClient(app) as client:
-        assert events == [
-            "singleton-start",
-        ]
+        assert events == []
         client.get("/")
         assert events == [
             "singleton-start",

@@ -2,14 +2,14 @@ FastAPI Integration
 ===================
 
 FastAPI has a great dependency system, but one of the key features it lacks is
-the ability to create singleton scoped dependencies which are not bound to the
-globals of a module. With ``flexdi`` you can create ``eager`` or singleton scoped
+the ability to create application or singleton scoped dependencies which are not 
+bound to the globals of a module. With ``flexdi`` you can create application scoped
 dependencies using the ``FastAPIGraph`` class.
 
 ``FastAPIGraph`` is an extension of the normal ``FlexGraph`` with the nessisary
-logic to hook itself into FastAPI's startup and shutdown logic. Upon getting a
-request, the ``FlexGraph`` will be chained to allow creating dependencies that
-have the same lifetime rules as the request, but, it can inherit ``eager`` 
+logic to hook itself into FastAPI's startup and shutdown. Upon getting a
+request, the ``FlexGraph`` will begin a new request scope to allow creating dependencies 
+that have the same lifetime rules as the request, but it can inherit any application
 scoped dependencies which are created at server startup time.
 
 To use a ``FlexGraph`` proided dependency within a FastAPI dependency or route,

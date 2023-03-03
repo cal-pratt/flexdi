@@ -20,8 +20,7 @@ def _main(foo: Foo) -> None:
     ...
 
 async def _amain() -> None:
-    async with graph:
-        return await graph.resolve(_main)
+    return await graph.resolve(_main)
 
 def main() -> None:
     asyncio.run(_amain())

@@ -1,24 +1,37 @@
 from collections import ChainMap
-from typing import Any, Dict, Iterable, List, MutableMapping, Optional, Set, Union
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, MutableMapping, Optional, Set, Union
 
 from .errors import CycleError, ImplicitBindingError
 from .implicit import is_implicitbinding
-from .policy import DEFAULT_POLICY, FlexPolicy
-from .store import FlexStore
 from .types import Func
 from .util import determine_return_type, parse_signature
 
 
-class FlexState:
+@dataclass
+class FlexPolicy:
+    scope: str
+    eager: bool
+
+
+DEFAULT_POLICY = FlexPolicy(scope="request", eager=False)
+
+
+class FlexRules:
+    """
+    Rules determine the validity of a callable to be injected and also keep track
+    of bindings, which allow callables to specify different providers. When scopes
+    create objects they will look to the rules to find the appropriate callables
+    to invoke for callables and their dependencies. After adding bindings and
+    policies to the rules, make sure to have them validated.
+    """
+
     def __init__(self) -> None:
-        self.opened = False
-        self._store = FlexStore()
         self._bindings: MutableMapping[Func, Func] = {}
         self._policies: MutableMapping[Func, FlexPolicy] = {}
 
-    def chain(self) -> "FlexState":
-        state = FlexState()
-        state._store = self._store.chain()
+    def clone(self) -> "FlexRules":
+        state = FlexRules()
         state._bindings = ChainMap({}, self._bindings)
         state._policies = ChainMap({}, self._policies)
         return state
@@ -36,15 +49,25 @@ class FlexState:
         for alias in aliases:
             self._bindings[alias] = func
 
+    def has_binding(self, func: Func) -> bool:
+        return func in self._bindings
+
+    def get_binding(self, func: Func) -> Func:
+        return self._bindings[func]
+
     def add_policy(
         self,
         func: Func,
+        scope: str,
         eager: bool,
     ) -> None:
-        self._policies[func] = FlexPolicy(eager=eager)
+        self._policies[func] = FlexPolicy(scope=scope, eager=eager)
 
     def get_policy(self, func: Func) -> FlexPolicy:
         return self._policies.get(func, DEFAULT_POLICY)
+
+    def get_policies(self) -> Dict[Func, FlexPolicy]:
+        return {func: self.get_policy(func) for func in self._bindings.values()}
 
     def reduce_bindings(self) -> None:
         """
@@ -118,44 +141,3 @@ class FlexState:
         self.reduce_bindings()
         self.validate_bindings()
         self.validate_bindings_acyclic()
-
-    async def open(self) -> "FlexState":
-        if self.opened:
-            return self
-
-        self.validate()
-        try:
-            self.opened = True
-            for func in self._bindings.values():
-                policy = self.get_policy(func)
-                if policy.eager:
-                    await self._resolve(func)
-        except:  # noqa: E722
-            await self.close()
-            raise
-        return self
-
-    async def close(self) -> None:
-        try:
-            await self._store.close()
-        finally:
-            self.opened = False
-
-    async def resolve(self, func: Func) -> Any:
-        if func not in self._bindings:
-            self.add_binding(func, func)
-            self.validate()
-
-        return await self._resolve(self._bindings[func])
-
-    async def _resolve(self, func: Func) -> Any:
-        async with self._store.lock(func):
-            if func not in self._store:
-                args: Dict[str, Any] = {}
-                for name, annotation in parse_signature(func).items():
-                    alias = self._bindings.get(annotation, annotation)
-                    args[name] = await self._resolve(alias)
-
-                await self._store.create(func, args)
-
-        return self._store[func]

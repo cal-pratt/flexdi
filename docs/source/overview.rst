@@ -1,8 +1,7 @@
 Overview
 ========
 
-``flexdi`` offers a construct called the ``FlexGraph`` which is used to
-keep track of dependencies and invoke other callables.
+``flexdi`` offers the ``FlexGraph``, used to manage dependencies and invoke callables.
 
 When determining dependencies for a callable, ``flexdi`` will examine the type
 annotations of the arguments, and populate the graph with dependencies which can
