@@ -1,11 +1,11 @@
 from collections import ChainMap
+from dataclasses import dataclass
 from typing import Dict, Iterable, List, MutableMapping, Optional, Set, Union
 
 from .errors import CycleError, ImplicitBindingError
 from .implicit import is_implicitbinding
 from .types import Func
 from .util import determine_return_type, parse_signature
-from dataclasses import dataclass
 
 
 @dataclass

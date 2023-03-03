@@ -3,8 +3,8 @@ from contextlib import contextmanager
 from typing import Any, Callable, Generic, Iterator, Optional, Union, overload
 
 from .errors import SetupError
-from .scope import GraphScope
 from .rules import FlexRules
+from .scope import GraphScope
 from .types import AsyncEntry, Entry, Entrypoint, EntrypointDecorator, FuncT, T
 
 
