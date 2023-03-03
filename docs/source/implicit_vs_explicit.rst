@@ -8,7 +8,7 @@ where it is unclear about which dependencies will actually be used.
 Errors on implicit bindings
 ---------------------------
 
-Going back to our previous asynchronous example, lets say that we want to move
+Going back to our previous Async Application example, lets say that we want to move
 the logic of our main method into a helper class called ``QueryService``.
 
 
@@ -34,15 +34,15 @@ This fails with:
 Fixing the issue by adding explicit bindings
 --------------------------------------------
 
-As noted in the comment above the main method, the graph refused to
-resolve the main method because it was not explicitly bound to the graph.
-To overcome this challenge we need to bind it to the graph.
+As noted in the error, the graph refused to resolve the function because 
+a dependency was not explicitly bound to the graph.
+To overcome this, we can explicitly to bind it to the graph.
 
 .. literalinclude:: ../../examples/implicit_vs_explicit/main_explicit.py
    :emphasize-lines: 11-12
 
-Great, the example works! But this seems kind of tedious to do if one has
-many dependencies that all need to be bound...
+This example works, but this may become tedious if there are many dependencies 
+to bind. We can overcome this hurlde with ``@implicitbinding``.
 
 
 Reducing boilerplate with ``@implicitbinding``

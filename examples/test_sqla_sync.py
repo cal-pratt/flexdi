@@ -17,11 +17,10 @@ def graph_override() -> Iterator[None]:
         yield
 
 
-# For this test we'll use an in-memory db
+# Use an in-memory db for tests, and override the real binding
 @pytest.fixture(autouse=True)
 def engine() -> Engine:
     engine = create_engine("sqlite://")
-    # For an instance, the type can be inferred from calling type()
     graph.bind_instance(engine)
     return engine
 

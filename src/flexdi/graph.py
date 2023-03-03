@@ -1,25 +1,14 @@
 import asyncio
 from contextlib import contextmanager
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Generic,
-    Iterator,
-    Optional,
-    Type,
-    Union,
-    cast,
-    overload,
-)
+from typing import Any, Callable, Generic, Iterator, Optional, Union, overload
 
 from .errors import SetupError
-from .state import FlexState
+from .scope import GraphScope
+from .rules import FlexRules
 from .types import AsyncEntry, Entry, Entrypoint, EntrypointDecorator, FuncT, T
 
 
-class FlexGraph:
+class FlexGraph(GraphScope):
     """
     The ``FlexGraph`` is used to keep track of dependencies and invoke callables.
 
@@ -33,29 +22,30 @@ class FlexGraph:
     dependencies. Bindings can also be defined as generators which allows supplying
     custom teardown logic for dependencies.
 
-    When using the FlexGraph directly to resolve dependencies, it must be used as
-    an asynchronous context manager. This ensures the proper teardown of any
-    dependencies it creates during dependency resolution.
+    When using the FlexGraph directly to resolve dependencies, it creates scopes
+    which ensures the proper caching, startup and teardown of any dependencies
+    it creates during dependency resolution.
 
     .. code-block:: python
 
         graph = FlexGraph()
 
         @graph.bind()
-        ...
+        def my_provider(...) -> ...:
+            ...
 
-        async with graph:
-            result = graph.resolve(func)
+        result = await graph.resolve(func)
     """
 
     def __init__(self) -> None:
-        self._state = FlexState()
+        super().__init__(FlexRules())
 
     @overload
     def bind(
         self,
         func: FuncT,
         *,
+        scope: str = "request",
         resolves: Any = None,
         eager: bool = False,
     ) -> FuncT:
@@ -65,6 +55,7 @@ class FlexGraph:
     def bind(
         self,
         *,
+        scope: str = "request",
         eager: bool = False,
         resolves: Any = None,
     ) -> Callable[[FuncT], FuncT]:
@@ -74,6 +65,7 @@ class FlexGraph:
         self,
         func: Optional[FuncT] = None,
         *,
+        scope: str = "request",
         resolves: Any = None,
         eager: bool = False,
     ) -> Union[FuncT, Callable[[FuncT], FuncT]]:
@@ -126,11 +118,11 @@ class FlexGraph:
         """
 
         def wrapper(_func: FuncT) -> FuncT:
-            if self._state.opened:
+            if self.opened:
                 raise SetupError("FlexGraph opened. Cannot be bound.")
 
-            self._state.add_binding(_func, resolves)
-            self._state.add_policy(_func, eager=eager)
+            self._rules.add_binding(_func, resolves)
+            self._rules.add_policy(_func, scope=scope, eager=eager)
             return _func
 
         return wrapper(func) if func else wrapper
@@ -156,95 +148,12 @@ class FlexGraph:
         :return: The unedited value supplied.
         """
 
-        if self._state.opened:
+        if self.opened:
             raise SetupError("FlexGraph opened. Cannot be bound.")
 
-        self._state.add_binding(func := lambda: value, resolves or type(value))
-        self._state.add_policy(func, eager=True)
+        self._rules.add_binding(func := lambda: value, resolves or type(value))
+        self._rules.add_policy(func, scope="application", eager=True)
         return value
-
-    async def __aenter__(self) -> "FlexGraph":
-        """
-        Open the FlexGraph. See ``FlexGraph.open``
-        """
-        return await self.open()
-
-    async def open(self) -> "FlexGraph":
-        """
-        When the FlexGraph is opened it will build a dependency tree given the
-        provided bindings and create instances of any bindings which have been
-        marked as eager.
-
-        The FlexGraph uses an ``AsyncExitStack`` to keep track of context managers
-        created during object initialization. Therefore, it must be opened prior
-        to resolving any dependencies.
-
-        :return: self
-        """
-
-        # Bind the current instance of the FlexGraph to any resolution.
-        self.bind_instance(self, resolves=FlexGraph)
-        await self._state.open()
-        return self
-
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        """
-        Close the FlexGraph. See ``FlexGraph.open``
-        """
-
-        await self.close()
-
-    async def close(self) -> None:
-        """
-        Close the FlexGraph and invoke the teardown of context managers invoked
-        as part of dependency resolution.
-        """
-
-        await self._state.close()
-
-    @overload
-    async def resolve(self, func: Type[T]) -> T:
-        # Handle class
-        ...
-
-    @overload
-    async def resolve(self, func: Callable[..., AsyncIterator[T]]) -> T:
-        # Handle async generators
-        ...
-
-    @overload
-    async def resolve(self, func: Callable[..., Iterator[T]]) -> T:
-        # Handle generators
-        ...
-
-    @overload
-    async def resolve(self, func: Callable[..., Awaitable[T]]) -> T:
-        # Handle async function
-        ...
-
-    @overload
-    async def resolve(self, func: Callable[..., T]) -> T:
-        # Handle function
-        ...
-
-    async def resolve(self, func: Callable[..., T]) -> T:
-        """
-        Resolve a callable using the graph.
-
-        The callable provided may be a class, function, async function, generator,
-        or async generator. The response object follows similar rules to the bindings,
-        in that generators will be treated as context managers, pulling the value
-        out which is yielded by the function.
-
-        :param func: The callable to be resolved.
-        :type func: Callable[..., T]
-
-        :return: ``T``.
-        """
-
-        if not self._state.opened:
-            raise SetupError("Graph was not opened")
-        return cast(T, await self._state.resolve(func))
 
     @overload
     def entrypoint(self, func: AsyncEntry[T]) -> Entrypoint[T]:
@@ -275,56 +184,36 @@ class FlexGraph:
                 _self._func = _func
 
             async def aio(_self) -> T:
-                async with self:
-                    return await self.resolve(_self._func)
+                return await self.resolve(_self._func)
 
             def __call__(_self) -> T:
                 loop = asyncio.get_event_loop()
-                return loop.run_until_complete(_self.aio())
+                return loop.run_until_complete(self.resolve(_self._func))
 
         return _FuncEntrypoint(func) if func else _FuncEntrypoint
-
-    def chain(self) -> "FlexGraph":
-        """
-        Graph chaining is the way that flexdi supports creating scopes for object
-        resolution within applications. If a graph has been opened it is allowed
-        to be chained.
-
-        When a graph is chained, a child graph will be created which inherits a
-        copy of the graph state found in the parent graph. Any objects created by
-        the parent graph will persist in the child, but existing parent resources
-        will not be closed or recreated until the parent exits. Any object created
-        by the child graph instance will be destroyed when the child closes.
-        """
-
-        if not self._state.opened:
-            raise SetupError("FlexGraph not opened. Cannot be chained.")
-
-        graph = FlexGraph()
-        graph._state = self._state.chain()
-        return graph
 
     @contextmanager
     def override(self) -> Iterator["FlexGraph"]:
         """
         This context manager is primarily intended for testing use-cases.
 
-        An override allow users to override dependency bindings with bindings in
-        a way that temporary and will be reverted when the override is closed.
+        An override allow users to override dependency bindings a temporary way
+        which will be reverted when the override is closed. This prevents making
+        permanent changes to a graph which is usually defined directly in the module.
 
-        The previous state of the graph is preserved by the context manager and
-        is cloned into a temporary copy. When the context manager exits, the
-        previous state is re-applied to the graph.
+        The previous rules for the graph are preserved by the context manager and
+        a clone of them is placed into the active graph instance. When the context
+        manager exits, the previous un-edited rules are re-applied to the graph.
 
         :return: ``ContextManager[FlexGraph]``.
         """
 
-        if self._state.opened:
+        if self.opened:
             raise SetupError("FlexGraph already opened. Cannot be overriden.")
 
-        state = self._state
+        rules = self._rules
         try:
-            self._state = self._state.chain()
+            self._rules = self._rules.clone()
             yield self
         finally:
-            self._state = state
+            self._rules = rules

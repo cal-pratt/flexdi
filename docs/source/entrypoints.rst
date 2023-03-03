@@ -16,3 +16,8 @@ Is roughly equivalent to:
 .. literalinclude:: ../../examples/entrypoints.py
    :start-after: [entrypoint2: Start]
    :end-before: [entrypoint2: End]
+
+.. note::
+
+   | If your application invoves leveraging scopes, this helper should be avoided.
+   | Only one request scope used for the eniterity of the entrypoint call.

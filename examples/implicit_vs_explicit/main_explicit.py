@@ -12,9 +12,6 @@ graph.bind(provide_connection)
 graph.bind(QueryService)
 
 
-# Succeeds, but can we do better?
-# What if I have a lot of classes?
-# Won't this get really tedious?
 @graph.entrypoint
 async def main(service: QueryService) -> None:
     print(await service.query())
