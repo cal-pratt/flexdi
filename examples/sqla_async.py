@@ -1,4 +1,3 @@
-import sys
 from typing import AsyncIterator
 
 from sqlalchemy import text
@@ -32,4 +31,4 @@ async def main(conn: AsyncConnection) -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

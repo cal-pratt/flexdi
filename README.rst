@@ -1,6 +1,6 @@
 
-FlexDI
-======
+Flex DI
+=======
 
 .. image:: https://img.shields.io/pypi/v/flexdi.svg
    :target: https://pypi.org/project/flexdi/
@@ -12,14 +12,14 @@ FlexDI
    :target: https://flexdi.readthedocs.io
 
 
-``flexdi`` is a yet another dependency injection library for Python.
+``flexdi`` is a yet another Dependency Injection library for Python.
 ``flexdi`` provides a lightweight alternative to common DI solutions
 with minimal setup to be included in your projects. This library is
 intended for use with type annotated Python libraries, as it leverages
 these type annotations to perform injection.
 
 .. note::
-  | **FlexDI is still a work in progress and is not yet intended
+  | **Flex DI is still a work in progress and is not yet intended
     for production use-cases.**
   | **Be aware that APIs are likely to change in upcoming releases.**
 
@@ -32,37 +32,40 @@ Goals
 
 - | **Minimal Setup**
   | Minimize boilderplate by leveraging type annotations to resolve
-    arguments. Allow user code to remain generic and reusable.
+    arguments. Allows user code to remain generic and reusable.
 
 - | **Inject Any Callable**
   | Provide any typed callable as an input to be invoked.
-    Support sync and async callables.
+    Supports sync and async callables.
 
 - | **Resource Management**
   | Define dependencies as context managers and have
     their startup and shutdown logic invoked in a reliable order.
-    Support sync and async context managers.
+    Supports sync and async context managers.
 
 - | **Scoped Dependencies**
   | Clearly define dependency lifetimes.
     Use ``"application"`` scoped dependencies to provide singleton like objects.
     Use ``"request"`` scoped dependencies to allow short-term isolated usage.
 
+
 Overview
 ========
 
 ``flexdi`` offers the ``FlexGraph``, used to manage dependencies and invoke callables.
+The graph is a representation of what dependencies exist, and what providers can be
+used to fulfil them.
 
 When determining dependencies for a callable, ``flexdi`` will examine the type
-annotations of the arguments, and populate the graph with dependencies which can
-satisfy the callable. A callable can be anything from a class (as seen with the
-type annotations), to functions, class methods, generators, etc.
+annotations of the arguments to populate the graph with dependencies that can
+satisfy the callable. A callable can be anything from a class, to functions, 
+class methods, generators, etc.
 
-For complex types, ``flexdi`` allows binding helper functions that can map a
-type definition to an instance. These bindings can themselves be injected
-with dependencies. Bindings can also be defined as generators which allows
-supplying custom teardown logic for dependencies.
-
+``flexdi`` allows *binding* helper functions to the graph as a providers of types,
+determined by their return annotations.
+Bindings can themselves be injected with dependencies,
+determined by their parameter annotations.
+A Binding can be a simple function or a generator with custom teardown logic.
 
 Example Usage
 -------------
@@ -71,7 +74,6 @@ A simple example of an application with SQLAlchemy dependencies:
 
 .. code:: python
 
-    import sys
     from typing import Iterator
     
     from sqlalchemy import Engine, create_engine, text
@@ -115,14 +117,13 @@ A simple example of an application with SQLAlchemy dependencies:
     
     # Notice that we call main with no arguments!
     if __name__ == "__main__":
-        sys.exit(main())
+        main()
     
 
 The same example, but using async code:
 
 .. code:: python
 
-    import sys
     from typing import AsyncIterator
     
     from sqlalchemy import text
@@ -156,7 +157,7 @@ The same example, but using async code:
     
     
     if __name__ == "__main__":
-        sys.exit(main())
+        main()
     
 
 Alternatives

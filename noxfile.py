@@ -126,6 +126,10 @@ def gen_readme() -> str:
 | The full documentation is available at `flexdi.readthedocs.io <https://flexdi.readthedocs.io>`_.
 
 {readall("docs/source/goals.rst")}
+
+Overview
+========
+
 {readall("docs/source/overview.rst")}
 
 Example Usage

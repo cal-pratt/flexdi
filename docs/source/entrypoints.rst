@@ -20,4 +20,4 @@ Is roughly equivalent to:
 .. note::
 
    | If your application invoves leveraging scopes, this helper should be avoided.
-   | Only one request scope used for the eniterity of the entrypoint call.
+   | Only one request scope will be used for the eniterity of the entrypoint call.
