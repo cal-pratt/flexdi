@@ -146,7 +146,31 @@ class FlexRules:
         for f in set(self._bindings.values()):
             assert_acyclic(f)
 
+    def upgrade_scopes(self) -> None:
+        """
+        Sub dependencies of application scoped bindings should be upgraded to
+        application scope to ensure that they are no created independently in
+        each scope.
+        """
+
+        validated: Set[Func] = set()
+
+        def upgrade_scope(func: Func) -> None:
+            if func in validated:
+                return
+
+            self.get_policy(func).scope = "application"
+            for clazz in parse_signature(func).values():
+                upgrade_scope(self._bindings[clazz])
+
+            validated.add(func)
+
+        for f, p in self._policies.items():
+            if p.scope == "application":
+                upgrade_scope(f)
+
     def validate(self) -> None:
         self.reduce_bindings()
         self.validate_bindings()
         self.validate_bindings_acyclic()
+        self.upgrade_scopes()
