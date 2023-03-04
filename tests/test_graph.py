@@ -838,3 +838,29 @@ async def test_marked_implicitbinding_with_explicit_deps() -> None:
     assert isinstance(res, Fizz)
     assert isinstance(res.bar, Bar)
     assert isinstance(res.bar.foo, Foo)
+
+
+@pytest.mark.asyncio
+async def test_upgrades_scope() -> None:
+    """
+    If an application scope dependency has a depends on a request scoped binding,
+    the request scope binding should be upgraded to application scope.
+    """
+
+    graph = FlexGraph()
+
+    @graph.bind
+    class Foo:
+        pass
+
+    @graph.bind(scope="application")
+    @dataclass
+    class Bar:
+        foo: Foo
+
+    async with graph.application_scope() as app_scope:
+        async with app_scope.request_scope() as req_scope:
+            foo = await req_scope.resolve(Foo)
+        bar = await req_scope.resolve(Bar)
+
+    assert bar.foo is foo
