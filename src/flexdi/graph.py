@@ -5,7 +5,15 @@ from typing import Any, Callable, Generic, Iterator, Optional, Union, overload
 from .errors import SetupError
 from .rules import FlexRules
 from .scope import GraphScope
-from .types import AsyncEntry, Entry, Entrypoint, EntrypointDecorator, FuncT, T
+from .types import (
+    AsyncEntry,
+    Entry,
+    Entrypoint,
+    EntrypointDecorator,
+    FuncT,
+    ScopeName,
+    T,
+)
 
 
 class FlexGraph(GraphScope):
@@ -45,7 +53,7 @@ class FlexGraph(GraphScope):
         self,
         func: FuncT,
         *,
-        scope: str = "request",
+        scope: ScopeName = "request",
         resolves: Any = None,
         eager: bool = False,
     ) -> FuncT:
@@ -55,7 +63,7 @@ class FlexGraph(GraphScope):
     def bind(
         self,
         *,
-        scope: str = "request",
+        scope: ScopeName = "request",
         eager: bool = False,
         resolves: Any = None,
     ) -> Callable[[FuncT], FuncT]:
@@ -65,7 +73,7 @@ class FlexGraph(GraphScope):
         self,
         func: Optional[FuncT] = None,
         *,
-        scope: str = "request",
+        scope: ScopeName = "request",
         resolves: Any = None,
         eager: bool = False,
     ) -> Union[FuncT, Callable[[FuncT], FuncT]]:
@@ -106,6 +114,9 @@ class FlexGraph(GraphScope):
 
         :param func: The callable that provides the binding, defaults to None
         :type func: Callable[..., T], optional
+
+        :param scope: The scope for the dependency. Defaults to "request".
+        :type scope: "application" | "request"
 
         :param resolves: The type or types that this provider binds to.
             defaults to the return type annotation of the provided func

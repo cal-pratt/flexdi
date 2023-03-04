@@ -2,15 +2,15 @@ from collections import ChainMap
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, MutableMapping, Optional, Set, Union
 
-from .errors import CycleError, ImplicitBindingError
+from .errors import CycleError, ImplicitBindingError, SetupError
 from .implicit import is_implicitbinding
-from .types import Func
+from .types import SCOPE_NAMES, Func, ScopeName
 from .util import determine_return_type, parse_signature
 
 
 @dataclass
 class FlexPolicy:
-    scope: str
+    scope: ScopeName
     eager: bool
 
 
@@ -58,9 +58,11 @@ class FlexRules:
     def add_policy(
         self,
         func: Func,
-        scope: str,
+        scope: ScopeName,
         eager: bool,
     ) -> None:
+        if scope not in SCOPE_NAMES:
+            raise SetupError(f"Invalid scope name {scope}")
         self._policies[func] = FlexPolicy(scope=scope, eager=eager)
 
     def get_policy(self, func: Func) -> FlexPolicy:
@@ -78,8 +80,15 @@ class FlexRules:
         """
 
         for clazz, func in set(self._bindings.items()):
+            stack: List[Func] = [func]
+            seen: Set[Func] = {func}
             while func != self._bindings.get(func, func):
                 func = self._bindings[func]
+                stack.append(func)
+                if func in seen:
+                    stack_error = "".join(f"\n  {s}" for s in stack)
+                    raise CycleError(f"Cycle detected in dependencies: {stack_error}")
+                seen.add(func)
             self._bindings[clazz] = func
 
     def validate_bindings(self) -> None:

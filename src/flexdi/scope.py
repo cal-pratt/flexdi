@@ -123,7 +123,7 @@ class ApplicationScope(FlexScope, Resolver):
     def request_scope(self) -> "RequestScope":
         if not self.opened:
             raise Exception("Scope must be opened before it can be chained")
-        return RequestScope(self._rules, self)
+        return RequestScope(self._rules.clone(), self)
 
     async def _resolve(self, func: Func) -> Instance:
         if self.opened:
@@ -149,7 +149,7 @@ class GraphScope(FlexScope, Resolver):
         if not self.opened:
             self._rules.validate()
             self.opened = True
-        return ApplicationScope(self._rules, self)
+        return ApplicationScope(self._rules.clone(), self)
 
     async def _resolve(self, func: Func) -> Instance:
         if self.opened:
