@@ -1,4 +1,3 @@
-import sys
 from typing import Iterator
 
 from sqlalchemy import Engine, create_engine, text
@@ -42,4 +41,4 @@ def main(conn: Session) -> None:
 
 # Notice that we call main with no arguments!
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

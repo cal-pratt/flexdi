@@ -1,5 +1,5 @@
-FlexDI
-======
+Flex DI
+=======
 
 .. image:: https://img.shields.io/pypi/v/flexdi.svg
    :target: https://pypi.org/project/flexdi/
@@ -11,13 +11,13 @@ FlexDI
    :target: https://flexdi.readthedocs.io
 
 
-``flexdi`` is a yet another dependency injection library for Python.
+``flexdi`` is a yet another Dependency Injection library for Python.
 ``flexdi`` provides a lightweight alternative to common DI solutions
 with minimal setup to be included in your projects. This library is
 intended for use with type annotated Python libraries, as it leverages
 these type annotations to perform injection.
 
 .. note::
-  | **FlexDI is still a work in progress and is not yet intended
+  | **Flex DI is still a work in progress and is not yet intended
     for production use-cases.**
   | **Be aware that APIs are likely to change in upcoming releases.**

@@ -3,12 +3,12 @@ Implicit Bindings
 
 To ensure that developers can reason about their code, all bindings in ``flexdi``
 must be explicitly bound. This ensures that we do not create bindings for items
-where it is unclear about which dependencies will actually be used.
+where it is unclear about how dependencies are constructed.
 
 Errors on implicit bindings
 ---------------------------
 
-Going back to our previous Async Application example, lets say that we want to move
+Going back to our previous Async Example, lets say that we want to move
 the logic of our main method into a helper class called ``QueryService``.
 
 
@@ -45,8 +45,8 @@ This example works, but this may become tedious if there are many dependencies
 to bind. We can overcome this hurlde with ``@implicitbinding``.
 
 
-Reducing boilerplate with ``@implicitbinding``
-----------------------------------------------
+``@implicitbinding``
+--------------------
 
 Classes marked with ``@implicitbinding`` avoid the need for explicit wiring 
 in the main module of your application. This is perfect for classes that have

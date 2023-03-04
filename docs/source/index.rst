@@ -19,11 +19,11 @@ Resources
    :includehidden:
    :maxdepth: 2
 
-   overview
+   why_di
    sync_example
    async_example
-   resolution
    entrypoints
+   resolution
    implicit_vs_explicit
    testing
    fastapi

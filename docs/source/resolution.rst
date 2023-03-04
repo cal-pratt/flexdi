@@ -1,19 +1,58 @@
 Scopes
 ======
 
-For these examples, we'll start by making some basic classes that
-we will bind to the graph in various ways.
+Scopes are used to help further manage the lifetime of dependencies in your
+applications. 
+
+.. note::
+
+   Scopes are useful for systems like webservers or worker queues, where certain 
+   objects have different lifetime rules. For simple command line applications, 
+   these concepts can be ignored.
+
+When setting bindings, there is an option to set the scope as either ``application`` 
+or ``request`` scoped. By default, dependencies are set to ``request`` scoped. 
+
+* | **Application Scope**: 
+  | Dependencies are created once per application and reused for all requests.
+
+* | **Request Scope**: 
+  | Dependencies are created newly for each request that is made. 
+  | Within a single request, objects will still be reused.
+
+When resolving objects with the graph, both scopes will always exist.
+Scopes are constructed for you if not manually created.
+For example, the following:
+
+.. literalinclude:: ../../examples/resolution.py
+   :start-after: [scope_equivalency_simple: Start]
+   :end-before: [scope_equivalency_simple: End]
+
+Is equivalent to:
+
+.. literalinclude:: ../../examples/resolution.py
+   :start-after: [scope_equivalency_verbose: Start]
+   :end-before: [scope_equivalency_verbose: End]
+
+
+Example Setup
+-------------
+
+We'll start by making some basic classes that
+we can bind to the graph in various ways:
 
 .. literalinclude:: ../../examples/resolution.py
    :start-after: [Class Definitions: Start]
    :end-before: [Class Definitions: End]
 
-To go along with these classes we will make a set of providers to
-construct them.
+With providers:
 
 .. literalinclude:: ../../examples/resolution.py
    :start-after: [Provider Definitions: Start]
    :end-before: [Provider Definitions: End]
+
+Using the graph directly
+------------------------
 
 We can use the ``FlexGraph`` directly without the entrypoint directive.
 The graph supports invoking any callable which has dependencies registered
@@ -35,29 +74,10 @@ objects between invocations.
    Example End
 
 We can see that ``create_foo`` is called twice, and that foo is shut down
-as soon as we get the result back. If we want to re-use results throughout
-multiple calls, we need to use scopes!
+as soon as we get the result back. This is because each scope is newly created
+and destroyed to processes each request. 
 
-Types of Scopes
----------------
-
-When setting bindings, there an option to set the scope.
-A dependency can either be ``application`` or ``request`` scoped, and
-by default, dependencies are set to ``request`` scoped. 
-
-When resolving objects with the graph, both scopes will always exist.
-If not manually created, missing scopes are constructed for you.
-For example, the following:
-
-.. literalinclude:: ../../examples/resolution.py
-   :start-after: [scope_equivalency_simple: Start]
-   :end-before: [scope_equivalency_simple: End]
-
-Is equivalent to:
-
-.. literalinclude:: ../../examples/resolution.py
-   :start-after: [scope_equivalency_verbose: Start]
-   :end-before: [scope_equivalency_verbose: End]
+If we want to re-use results throughout multiple calls, we need to use scopes!
 
 Request Scope
 -------------
@@ -136,6 +156,6 @@ different scopes:
    After App Scope
 
 Even though we didn't specifically call ``create_foo`` or ``create_bar``,
-they we opened when entering the scope they were associated with. And we
-can also notice that they are closed only after their associated scope has
+they were opened when entering the scope they were associated with.
+We also notice that they are closed only after their associated scope has
 also been closed.
