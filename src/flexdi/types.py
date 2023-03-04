@@ -14,6 +14,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Literal
+
 # Note, in 3.10+ we can start using TypeAlias
 Clazz = Type[Any]
 Func = Union[Clazz, Callable[..., Any]]
@@ -113,3 +115,7 @@ class Resolver(ABC):
     @abstractmethod
     async def _resolve(self, func: Func) -> Instance:
         pass
+
+
+ScopeName = Literal["application", "request"]
+SCOPE_NAMES = ["application", "request"]
