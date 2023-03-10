@@ -1,9 +1,9 @@
 from typing import Any, Dict, List, Optional
 
-from .rules import FlexRules
-from .store import FlexStore
-from .types import Func, Instance, Openable, Resolver
-from .util import parse_signature
+from ._rules import FlexRules
+from ._store import FlexStore
+from ._types import Func, Instance, Openable, Resolver
+from ._util import parse_signature
 
 
 class FlexScope(Openable):

@@ -19,7 +19,6 @@ DEV_DEPS = [
     "pydantic >= 1.10.5",
     "pytest >= 7.2.1",
     "pytest-asyncio >= 0.20.3",
-    "typing-extensions >= 4.5.0",
 ]
 
 nox.options.sessions = ["dev"]

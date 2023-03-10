@@ -3,8 +3,7 @@ from typing import Any, AsyncIterator, Optional, Type, TypeVar, cast
 
 from fastapi import Depends, FastAPI, Request
 
-from flexdi import FlexGraph
-from flexdi.scope import ApplicationScope, RequestScope
+from flexdi import ApplicationScope, FlexGraph, RequestScope
 
 T = TypeVar("T")
 

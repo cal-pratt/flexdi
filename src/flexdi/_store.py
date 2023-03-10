@@ -2,8 +2,8 @@ from asyncio import Lock
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, AsyncIterator, Dict, MutableMapping
 
-from .types import Func, Instance
-from .util import invoke_callable
+from ._types import Func, Instance
+from ._util import invoke_callable
 
 
 class FlexStore:
