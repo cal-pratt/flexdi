@@ -2,10 +2,9 @@ import asyncio
 from contextlib import contextmanager
 from typing import Any, Callable, Generic, Iterator, Optional, Union, overload
 
-from .errors import SetupError
-from .rules import FlexRules
-from .scope import GraphScope
-from .types import (
+from ._rules import FlexRules
+from ._scope import GraphScope
+from ._types import (
     AsyncEntry,
     Entry,
     Entrypoint,
@@ -14,6 +13,7 @@ from .types import (
     ScopeName,
     T,
 )
+from .errors import SetupError
 
 
 class FlexGraph(GraphScope):

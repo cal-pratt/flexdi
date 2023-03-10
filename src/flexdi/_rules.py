@@ -2,10 +2,10 @@ from collections import ChainMap
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, MutableMapping, Optional, Set, Union
 
+from ._implicit import is_implicitbinding
+from ._types import SCOPE_NAMES, Func, ScopeName
+from ._util import determine_return_type, parse_signature
 from .errors import CycleError, ImplicitBindingError, SetupError
-from .implicit import is_implicitbinding
-from .types import SCOPE_NAMES, Func, ScopeName
-from .util import determine_return_type, parse_signature
 
 
 @dataclass

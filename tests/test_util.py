@@ -5,8 +5,8 @@ import pytest
 # Import of Annotated not available from typing until 3.9
 from typing_extensions import Annotated
 
+from flexdi._util import determine_return_type
 from flexdi.errors import UntypedError
-from flexdi.util import determine_return_type
 
 
 class SimpleClass:
