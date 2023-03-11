@@ -34,8 +34,6 @@ class FastAPIGraph(FlexGraph):
 
         @app.on_event("startup")
         async def startup() -> None:
-            await self.open()
-            stack.push_async_callback(self.close)
             nonlocal app_scope
             app_scope = self.application_scope()
             await app_scope.open()

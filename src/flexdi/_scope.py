@@ -1,12 +1,16 @@
 from typing import Any, Dict, List, Optional
 
+from ._bindable import BindableMixin
+from ._openable import OpenableMixin
+from ._resolvable import ResolvableMixin
 from ._rules import FlexRules
 from ._store import FlexStore
-from ._types import Func, Instance, Openable, Resolver
+from ._types import Func, Instance
 from ._util import parse_signature
+from .errors import SetupError
 
 
-class FlexScope(Openable):
+class FlexScope(OpenableMixin):
     """
     A scope in the storage mechanism and policy executor of dependencies.
 
@@ -14,7 +18,7 @@ class FlexScope(Openable):
 
     .. code-block:: text
 
-        RequestScope -> ApplicationScope -> GraphScope.
+        RequestScope -> ApplicationScope
 
     When an object is requested to be created, the scope will examine the policy
     on the dependency and see if it matches. If the policy is not correct for the
@@ -55,7 +59,7 @@ class FlexScope(Openable):
             self.opened = True
             for func, policy in self._rules.get_policies().items():
                 if policy.eager and policy.scope in self._scope_names:
-                    await self.evaluate(func)
+                    await self._scope_resolve(func)
         except:  # noqa: E722
             await self.close()
             raise
@@ -67,7 +71,7 @@ class FlexScope(Openable):
         finally:
             self.opened = False
 
-    async def evaluate(self, func: Func) -> Any:
+    async def _scope_resolve(self, func: Func) -> Any:
         if not self._rules.has_binding(func):
             self._rules.add_binding(func, func)
             self._rules.validate()
@@ -77,7 +81,7 @@ class FlexScope(Openable):
 
         if policy.scope not in self._scope_names:
             if parent := self._parent:
-                return await parent.evaluate(func)
+                return await parent._scope_resolve(func)
             else:
                 raise Exception(
                     "Could not resolve scope for func "
@@ -88,14 +92,14 @@ class FlexScope(Openable):
             if func not in self._store:
                 args: Dict[str, Any] = {}
                 for name, clazz in parse_signature(func).items():
-                    args[name] = await self.evaluate(clazz)
+                    args[name] = await self._scope_resolve(clazz)
 
                 await self._store.create(func, args)
 
         return self._store[func]
 
 
-class RequestScope(FlexScope, Resolver):
+class RequestScope(FlexScope, BindableMixin, ResolvableMixin):
     """
     The request scope is the storage for all request or unmarked scoped dependencies.
     If already opened, it can be called repeatedly to have cached calls.
@@ -106,23 +110,23 @@ class RequestScope(FlexScope, Resolver):
 
     async def _resolve(self, func: Func) -> Instance:
         if self.opened:
-            return await self.evaluate(func)
+            return await self._scope_resolve(func)
         async with self:
-            return await self.evaluate(func)
+            return await self._scope_resolve(func)
 
 
-class ApplicationScope(FlexScope, Resolver):
+class ApplicationScope(FlexScope, BindableMixin, ResolvableMixin):
     """
     The application scope is the storage for all application scoped dependencies.
     For higher stricter scoped dependencies it will defer to the request scope.
     """
 
-    def __init__(self, rules: FlexRules, parent: FlexScope) -> None:
-        super().__init__(rules, parent, scope_names=["application"])
+    def __init__(self, rules: FlexRules) -> None:
+        super().__init__(rules, parent=None, scope_names=["application"])
 
-    def request_scope(self) -> "RequestScope":
+    def request_scope(self) -> RequestScope:
         if not self.opened:
-            raise Exception("Scope must be opened before it can be chained")
+            raise SetupError("Scope must be opened before it can be chained")
         return RequestScope(self._rules.clone(), self)
 
     async def _resolve(self, func: Func) -> Instance:
@@ -130,29 +134,3 @@ class ApplicationScope(FlexScope, Resolver):
             return await self.request_scope().resolve(func)
         async with self:
             return await self.request_scope().resolve(func)
-
-
-class GraphScope(FlexScope, Resolver):
-    """
-    The base scope for a graph instance. Mainly exists to provide a nice container
-    for the FlexGraph instance. This will defer to the application scope for
-    constructing values.
-    """
-
-    async def open(self) -> None:
-        if self.opened:
-            return
-        self._rules.validate()
-        self.opened = True
-
-    def application_scope(self) -> "ApplicationScope":
-        if not self.opened:
-            self._rules.validate()
-            self.opened = True
-        return ApplicationScope(self._rules.clone(), self)
-
-    async def _resolve(self, func: Func) -> Instance:
-        if self.opened:
-            return await self.application_scope().resolve(func)
-        async with self:
-            return await self.application_scope().resolve(func)
