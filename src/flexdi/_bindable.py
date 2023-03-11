@@ -2,7 +2,7 @@ from typing import Any, Callable, Optional, TypeVar, Union, overload
 
 from ._rules import FlexRules
 from ._types import FuncT, ScopeName
-from .errors import SetupError
+from .errors import FlexError
 
 T = TypeVar("T")
 
@@ -93,7 +93,7 @@ class BindableMixin:
 
         def wrapper(_func: FuncT) -> FuncT:
             if self.opened:
-                raise SetupError("FlexGraph opened. Cannot be bound.")
+                raise FlexError("FlexGraph opened. Cannot be bound.")
 
             self._rules.add_binding(_func, resolves)
             self._rules.add_policy(_func, scope=scope, eager=eager)
@@ -123,7 +123,7 @@ class BindableMixin:
         """
 
         if self.opened:
-            raise SetupError("FlexGraph opened. Cannot be bound.")
+            raise FlexError("FlexGraph opened. Cannot be bound.")
 
         self._rules.add_binding(func := lambda: value, resolves or type(value))
         self._rules.add_policy(func, scope="application", eager=True)

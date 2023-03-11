@@ -72,7 +72,7 @@ def parse_signature(func: Any) -> Dict[str, Type[Any]]:
     arguments: Dict[str, Type[Any]] = {}
     for name, param in inspect.signature(func).parameters.items():
         if not param.annotation:
-            raise Exception(f"No annotation on argument {func=} {name=}")
+            raise UntypedError(f"No annotation on argument {func=} {name=}")
         arguments[name] = param.annotation
 
     return arguments

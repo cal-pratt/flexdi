@@ -43,7 +43,6 @@ class FlexGraph(BindableMixin, EntrypointMixin):
         self._rules = FlexRules()
 
     def application_scope(self) -> ApplicationScope:
-        self._rules.validate()
         return ApplicationScope(self._rules.clone())
 
     async def _resolve(self, func: Func) -> Instance:
