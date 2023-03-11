@@ -24,7 +24,7 @@ class FlaskGraph(FlexGraph):
             await req_scope.open()
             stack.push_async_callback(req_scope.close)
 
-            request.view_args = await self.resolve_args(
+            request.view_args = await req_scope.resolve_args(
                 app.view_functions[request.endpoint], **(request.view_args or {})
             )
 
