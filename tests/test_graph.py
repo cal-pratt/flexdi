@@ -108,7 +108,7 @@ async def test_cycle_detection() -> None:
         return 0
 
     with pytest.raises(CycleError):
-        async with graph:
+        async with graph.application_scope():
             pass
 
 
@@ -707,7 +707,7 @@ async def test_disallow_implicit_bindings_enter() -> None:
         foo: Foo
 
     with pytest.raises(ImplicitBindingError):
-        async with graph:
+        async with graph.application_scope():
             pass
 
 
