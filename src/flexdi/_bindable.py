@@ -126,5 +126,5 @@ class BindableMixin:
             raise FlexError("FlexGraph opened. Cannot be bound.")
 
         self._rules.add_binding(func := lambda: value, resolves or type(value))
-        self._rules.add_policy(func, scope="application", eager=True)
+        self._rules.add_policy(func, scope="request", eager=True)
         return value

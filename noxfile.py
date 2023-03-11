@@ -13,6 +13,7 @@ DEV_DEPS = [
     "bumpversion >= 0.6.0",
     "fastapi >= 0.92.0",
     "flake8 >= 6.0.0",
+    "Flask[async] >= 2.2.3",
     "httpx >= 0.23.3",
     "isort >= 5.12.0",
     "mypy >= 1.0.1",

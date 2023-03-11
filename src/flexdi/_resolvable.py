@@ -4,6 +4,7 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
+    Dict,
     Iterator,
     Type,
     TypeVar,
@@ -59,4 +60,10 @@ class ResolvableMixin(ABC):
 
     @abstractmethod
     async def _resolve(self, func: Callable[..., Any]) -> Any:
+        pass
+
+    @abstractmethod
+    async def resolve_args(
+        self, func: Callable[..., Any], **extra: Any
+    ) -> Dict[str, Any]:
         pass
