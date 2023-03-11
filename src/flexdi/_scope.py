@@ -7,7 +7,7 @@ from ._rules import FlexRules
 from ._store import FlexStore
 from ._types import Func, Instance
 from ._util import parse_signature
-from .errors import SetupError
+from .errors import FlexError
 
 
 class FlexScope(OpenableMixin):
@@ -55,6 +55,7 @@ class FlexScope(OpenableMixin):
         if self.opened:
             return
 
+        self._rules.validate()
         try:
             self.opened = True
             for func, policy in self._rules.get_policies().items():
@@ -74,7 +75,7 @@ class FlexScope(OpenableMixin):
     async def _scope_resolve(self, func: Func) -> Any:
         if not self._rules.has_binding(func):
             self._rules.add_binding(func, func)
-            self._rules.validate()
+        self._rules.validate()
 
         func = self._rules.get_binding(func)
         policy = self._rules.get_policy(func)
@@ -83,7 +84,7 @@ class FlexScope(OpenableMixin):
             if parent := self._parent:
                 return await parent._scope_resolve(func)
             else:
-                raise Exception(
+                raise FlexError(
                     "Could not resolve scope for func "
                     f"{func} in scope {policy.scope}"
                 )
@@ -126,7 +127,7 @@ class ApplicationScope(FlexScope, BindableMixin, ResolvableMixin):
 
     def request_scope(self) -> RequestScope:
         if not self.opened:
-            raise SetupError("Scope must be opened before it can be chained")
+            raise FlexError("Scope must be opened before it can be chained")
         return RequestScope(self._rules.clone(), self)
 
     async def _resolve(self, func: Func) -> Instance:

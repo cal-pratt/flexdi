@@ -5,7 +5,7 @@ from typing import Dict, Iterable, List, MutableMapping, Optional, Set, Union
 from ._implicit import is_implicitbinding
 from ._types import SCOPE_NAMES, Func, ScopeName
 from ._util import determine_return_type, parse_signature
-from .errors import CycleError, ImplicitBindingError, SetupError
+from .errors import CycleError, FlexError, ImplicitBindingError
 
 
 @dataclass
@@ -27,10 +27,12 @@ class FlexRules:
     """
 
     def __init__(self) -> None:
+        self._validated = True
         self._bindings: MutableMapping[Func, Func] = {}
         self._policies: MutableMapping[Func, FlexPolicy] = {}
 
     def clone(self) -> "FlexRules":
+        self.validate()
         state = FlexRules()
         state._bindings = ChainMap({}, self._bindings)
         state._policies = ChainMap({}, self._policies)
@@ -48,6 +50,7 @@ class FlexRules:
             aliases = [aliases]
         for alias in aliases:
             self._bindings[alias] = func
+        self._validated = False
 
     def has_binding(self, func: Func) -> bool:
         return func in self._bindings
@@ -62,8 +65,9 @@ class FlexRules:
         eager: bool,
     ) -> None:
         if scope not in SCOPE_NAMES:
-            raise SetupError(f"Invalid scope name {scope}")
+            raise FlexError(f"Invalid scope name {scope}")
         self._policies[func] = FlexPolicy(scope=scope, eager=eager)
+        self._validated = False
 
     def get_policy(self, func: Func) -> FlexPolicy:
         return self._policies.get(func, DEFAULT_POLICY)
@@ -170,7 +174,9 @@ class FlexRules:
                 upgrade_scope(f)
 
     def validate(self) -> None:
-        self.reduce_bindings()
-        self.validate_bindings()
-        self.validate_bindings_acyclic()
-        self.upgrade_scopes()
+        if not self._validated:
+            self.reduce_bindings()
+            self.validate_bindings()
+            self.validate_bindings_acyclic()
+            self.upgrade_scopes()
+        self._validated = True
