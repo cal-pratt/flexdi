@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Iterator, TypeVar
+from typing import Any, Dict, Iterator, TypeVar
 
 from ._bindable import BindableMixin
 from ._entrypoint import EntrypointMixin
@@ -47,6 +47,9 @@ class FlexGraph(BindableMixin, EntrypointMixin):
 
     async def _resolve(self, func: Func) -> Instance:
         return await self.application_scope().resolve(func)
+
+    async def resolve_args(self, func: Func, **extra: Any) -> Dict[str, Any]:
+        return await self.application_scope().resolve_args(func, **extra)
 
     @contextmanager
     def override(self) -> Iterator["FlexGraph"]:

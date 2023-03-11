@@ -91,13 +91,19 @@ class FlexScope(OpenableMixin):
 
         async with self._store.lock(func):
             if func not in self._store:
-                args: Dict[str, Any] = {}
-                for name, clazz in parse_signature(func).items():
-                    args[name] = await self._scope_resolve(clazz)
-
+                args = await self._scope_resolve_args(func)
                 await self._store.create(func, args)
 
         return self._store[func]
+
+    async def _scope_resolve_args(self, func: Func, **extra: Any) -> Dict[str, Any]:
+        args: Dict[str, Any] = dict(extra)
+        for name, clazz in parse_signature(func).items():
+            if name not in args:
+                # Note that the extra args are not propagated.
+                # You can only enhance the first level of resolution.
+                args[name] = await self._scope_resolve(clazz)
+        return args
 
 
 class RequestScope(FlexScope, BindableMixin, ResolvableMixin):
@@ -114,6 +120,12 @@ class RequestScope(FlexScope, BindableMixin, ResolvableMixin):
             return await self._scope_resolve(func)
         async with self:
             return await self._scope_resolve(func)
+
+    async def resolve_args(self, func: Func, **extra: Any) -> Dict[str, Any]:
+        if self.opened:
+            return await self._scope_resolve_args(func, **extra)
+        async with self:
+            return await self._scope_resolve_args(func, **extra)
 
 
 class ApplicationScope(FlexScope, BindableMixin, ResolvableMixin):
@@ -135,3 +147,9 @@ class ApplicationScope(FlexScope, BindableMixin, ResolvableMixin):
             return await self.request_scope().resolve(func)
         async with self:
             return await self.request_scope().resolve(func)
+
+    async def resolve_args(self, func: Func, **extra: Any) -> Dict[str, Any]:
+        if self.opened:
+            return await self.request_scope().resolve_args(func, **extra)
+        async with self:
+            return await self.request_scope().resolve_args(func, **extra)
